@@ -55,7 +55,9 @@ private theorem point_degree {q : ℕ} (hq : 0 < q) (hn : n = q^2+q+1)
   rw [Finset.sum_const_nat hrow, Finset.sum_const_nat hcol] at h
   have hc : U.card = n-1 := by simp [U]
   rw [hc] at h
-  have he : (q+1)*q = (pencil I p).card*q := by nlinarith [Nat.sub_add_cancel (by omega : 1 ≤ q^2+q+1)]
+  have he : (q+1)*q = (pencil I p).card*q := by
+    rw [← h, mul_one, show n-1 = q^2+q by omega]
+    ring
   exact (Nat.eq_of_mul_eq_mul_right hq he).symm
 
 private theorem meet_le (hj : ∀ p r, p ≠ r → ∃! l, I p l ∧ I r l)
