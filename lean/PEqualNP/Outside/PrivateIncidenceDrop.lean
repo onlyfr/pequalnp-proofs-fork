@@ -220,7 +220,9 @@ theorem private_points_and_line_save {n : ℕ} (I : Fin n → Fin n → Prop)
         rw [pair_line] at hax
         exact (Finset.ne_of_mem_erase ha) (of_decide_eq_true hax)
       dsimp only
-      rw [pair_line p l l, show (!(decide (l = l))) = false by simp, final_eq, hz, ht]
+      rw [pair_line p l l, show (!(decide (l = l))) = false by simp]
+      change f (Function.update (pairInput p l) (Fin.natAdd n l) false) ≠ f (pairInput p l)
+      rw [final_eq, hz, ht]
       decide
   have heq : (fun x => f (Function.update x (Fin.natAdd n l) false)) = edgeFun I (S.erase l) :=
     funext final_eq
