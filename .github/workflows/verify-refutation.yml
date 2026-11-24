@@ -1,0 +1,21 @@
+name: Verify refutation
+on:
+  push:
+    branches: [refute-L-meta-3314]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -fsSL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build proof
+        working-directory: lean
+        run: |
+          lake exe cache get
+          lake build PEqualNP.Outside.Refute_meta_3314
