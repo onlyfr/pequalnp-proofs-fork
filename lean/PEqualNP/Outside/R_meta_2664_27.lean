@@ -12,8 +12,8 @@ theorem PEqualNP.Outside.R_meta_2664_27
     (∀ p r : Fin n, p ≠ r → ∃! l : Fin n, I p l ∧ I r l) →
     ∀ (S : Finset (Fin n)) (D : PEqualNP.CircuitLowerBounds.Circuit),
     S.Nonempty → PEqualNP.MetaComplexity.Monotone2 D → (∀ x : Fin (n+n) → Bool, PEqualNP.MetaComplexity.circuitFun (n+n) D x = true ↔ ∃ p l : Fin n, l ∈ S ∧ I p l ∧ x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n l) = true) →
-    ∃ l ∈ S, ∃ E : PEqualNP.CircuitLowerBounds.Circuit, PEqualNP.MetaComplexity.Monotone2 E ∧
-      (∀ x : Fin (n+n) → Bool, PEqualNP.MetaComplexity.circuitFun (n+n) E x = true ↔ ∃ p l : Fin n, l ∈ (S.erase l) ∧ I p l ∧ x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n l) = true) ∧ 100 * E.size + q ≤ 100 * D.size) :
+    ∃ removed ∈ S, ∃ E : PEqualNP.CircuitLowerBounds.Circuit, PEqualNP.MetaComplexity.Monotone2 E ∧
+      (∀ x : Fin (n+n) → Bool, PEqualNP.MetaComplexity.circuitFun (n+n) E x = true ↔ ∃ p l : Fin n, l ∈ (S.erase removed) ∧ I p l ∧ x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n l) = true) ∧ 100 * E.size + q ≤ 100 * D.size) :
   ∀ (q n : ℕ) (I : Fin n → Fin n → Prop) [DecidableRel I] (D : PEqualNP.CircuitLowerBounds.Circuit), 199 ≤ q → n = q ^ 2 + q + 1 →
     (∀ l : Fin n, Fintype.card {p : Fin n // I p l} = q + 1) →
     (∀ p r : Fin n, p ≠ r → ∃! l : Fin n, I p l ∧ I r l) →
