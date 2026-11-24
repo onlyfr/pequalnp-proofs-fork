@@ -39,7 +39,7 @@ theorem pair_line {n : ℕ} (p l a : Fin n) :
     pairInput p l (Fin.natAdd n a) = decide (a = l) := by
   have h := (left_ne_right p a).symm
   have he : Fin.natAdd n a = Fin.natAdd n l ↔ a = l :=
-    ⟨Fin.natAdd_injective n n, congrArg (Fin.natAdd n)⟩
+    ⟨fun h => Fin.natAdd_injective n n h, congrArg (Fin.natAdd n)⟩
   simp only [pairInput, h, false_or, he]
 
 theorem edgeFun_zero {n : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin n)) :
@@ -210,3 +210,4 @@ theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
     omega
 
 end Onlyfr.PrivateIncidenceDrop
+
