@@ -33,12 +33,14 @@ def pairInput {n : ℕ} (p l : Fin n) (z : Fin (n+n)) : Bool :=
 
 theorem pair_point {n : ℕ} (p l r : Fin n) :
     pairInput p l (Fin.castAdd n r) = decide (r = p) := by
-  simp [pairInput, left_ne_right]
+  simp only [pairInput, left_ne_right, or_false, Fin.castAdd_inj]
 
 theorem pair_line {n : ℕ} (p l a : Fin n) :
     pairInput p l (Fin.natAdd n a) = decide (a = l) := by
   have h := (left_ne_right p a).symm
-  simp [pairInput, h]
+  have he : Fin.natAdd n a = Fin.natAdd n l ↔ a = l :=
+    ⟨Fin.natAdd_injective n n, congrArg (Fin.natAdd n)⟩
+  simp only [pairInput, h, false_or, he]
 
 theorem edgeFun_zero {n : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin n)) :
     edgeFun I S (fun _ => false) = false := by
@@ -102,7 +104,7 @@ theorem point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
   have ht : edgeFun I S (pin A (pairInput p l)) = true := by
     apply (edgeFun_true I S _).mpr
     exact ⟨p, l, hl, hpoints p hp,
-      by simp [pin, hiA, pair_point], by simp [pin, no_line l, pair_line]⟩
+      by simp [pin, hiA, pair_point], by rw [pin, if_neg (no_line l), pair_line]; simp⟩
   have hz : edgeFun I S (pin A (Function.update (pairInput p l)
       (Fin.castAdd n p) (!(pairInput p l (Fin.castAdd n p))))) = false := by
     apply Bool.eq_false_iff.mpr
@@ -112,6 +114,7 @@ theorem point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
     · subst r; simp [pin, pair_point] at hr
     · have he' : Fin.castAdd n r ≠ Fin.castAdd n p := fun h => he (Fin.castAdd_injective n n h)
       simp [pin, Function.update_of_ne he', pair_point, he] at hr
+  dsimp only
   rw [hz, ht]
   decide
 
@@ -148,7 +151,7 @@ theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
     have ht : edgeFun I S (pin A (pairInput r a)) = true := by
       apply (edgeFun_true I S _).mpr
       exact ⟨r, a, Finset.mem_of_mem_erase ha, hra,
-        by simp [pin, hrA, pair_point], by simp [pin, no_line A hA a, pair_line]⟩
+        by simp [pin, hrA, pair_point], by rw [pin, if_neg (no_line A hA a), pair_line]; simp⟩
     have hz : pin A (fun _ => false) = fun _ => false := by funext z; simp [pin]
     rw [ht, hz, edgeFun_zero]
     decide
@@ -165,29 +168,35 @@ theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
     constructor
     · rintro ⟨p, a, ha, hpa, hp, hax⟩
       have hal : a ≠ l := by
-        rintro rfl
-        simp [pin, no_line Q (fun _ h => h) l, Function.update_same] at hax
+        intro he
+        subst a
+        rw [pin, if_neg (no_line Q (fun _ h => h) l), Function.update_self] at hax
+        cases hax
       have hpP : p ∉ P := fun h => (hprivate p h).2 a (Finset.mem_erase.mpr ⟨hal, ha⟩) hpa
       have hpQ : Fin.castAdd n p ∉ Q := by simpa [Q] using hpP
       refine ⟨p, a, Finset.mem_erase.mpr ⟨hal, ha⟩, hpa, ?_, ?_⟩
-      · simpa [pin, hpQ, Function.update_of_ne (left_ne_right p l)] using hp
+      · rw [pin, if_neg hpQ, Function.update_of_ne (left_ne_right p l)] at hp
+        exact hp
       · have he : Fin.natAdd n a ≠ Fin.natAdd n l := fun h => hal (Fin.natAdd_injective n n h)
-        simpa [pin, no_line Q (fun _ h => h) a, Function.update_of_ne he] using hax
+        rw [pin, if_neg (no_line Q (fun _ h => h) a), Function.update_of_ne he] at hax
+        exact hax
     · rintro ⟨p, a, ha, hpa, hp, hax⟩
       have hpP : p ∉ P := fun h => (hprivate p h).2 a ha hpa
       have hpQ : Fin.castAdd n p ∉ Q := by simpa [Q] using hpP
       have hal : a ≠ l := Finset.ne_of_mem_erase ha
       have he : Fin.natAdd n a ≠ Fin.natAdd n l := fun h => hal (Fin.natAdd_injective n n h)
       refine ⟨p, a, Finset.mem_of_mem_erase ha, hpa, ?_, ?_⟩
-      · simpa [pin, hpQ, Function.update_of_ne (left_ne_right p l)] using hp
-      · simpa [pin, no_line Q (fun _ h => h) a, Function.update_of_ne he] using hax
+      · rw [pin, if_neg hpQ, Function.update_of_ne (left_ne_right p l)]
+        exact hp
+      · rw [pin, if_neg (no_line Q (fun _ h => h) a), Function.update_of_ne he]
+        exact hax
   have hnc : ∃ x y, f (Function.update x (Fin.natAdd n l) false) ≠
       f (Function.update y (Fin.natAdd n l) false) := by
     obtain ⟨a, ha, r, hra⟩ := hother
     refine ⟨pairInput r a, fun _ => false, ?_⟩
     rw [final_eq, final_eq, edgeFun_zero]
     have hh : edgeFun I (S.erase l) (pairInput r a) = true := by
-      exact (edgeFun_true I _ _).mpr ⟨r, a, ha, hra, by simp [pair_point], by simp [pair_line]⟩
+      exact (edgeFun_true I _ _).mpr ⟨r, a, ha, hra, by rw [pair_point]; simp, by rw [pair_line]; simp⟩
     rw [hh]
     decide
   have hres := restrict_input (n+n) t f (Fin.natAdd n l) false hf hnc

@@ -39,7 +39,7 @@ theorem star_cost {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
     refine ⟨pairInput r l, fun _ => false, ?_⟩
     have ht : edgeFun I S (pin A (pairInput r l)) = true := by
       exact (edgeFun_true I S _).mpr ⟨r, l, hl, hrl,
-        by simp [pin, hrA, pair_point], by simp [pin, hlA, pair_line]⟩
+        by simp [pin, hrA, pair_point], by rw [pin, if_neg hlA, pair_line]; simp⟩
     have hz : pin A (fun _ => false) = fun _ => false := by funext z; simp [pin]
     rw [ht, hz, edgeFun_zero]
     decide
