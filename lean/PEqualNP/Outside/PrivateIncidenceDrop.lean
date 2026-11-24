@@ -118,9 +118,9 @@ theorem point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
   rw [hz, ht]
   decide
 
-theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
+theorem private_points_and_line_save {n : ℕ} (I : Fin n → Fin n → Prop)
     (S : Finset (Fin n)) (l : Fin n) (P : Finset (Fin n)) (D : Circuit)
-    (hl : l ∈ S) (hprivate : ∀ p ∈ P, I p l ∧ ∀ a ∈ S.erase l, ¬ I p a)
+    (bonus : ℕ) (hbonus : bonus ≤ 1) (hkeep : 0 < bonus → ∃ p ∉ P, I p l) (hl : l ∈ S) (hprivate : ∀ p ∈ P, I p l ∧ ∀ a ∈ S.erase l, ¬ I p a)
     (hother : ∃ a ∈ S.erase l, ∃ r, I r a)
     (hm : Monotone2 D)
     (hex : ∀ x, circuitFun (n+n) D x = true ↔ ∃ p a, a ∈ S ∧ I p a ∧
@@ -128,7 +128,7 @@ theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
     ∃ E : Circuit, Monotone2 E ∧
       (∀ x, circuitFun (n+n) E x = true ↔ ∃ p a, a ∈ S.erase l ∧ I p a ∧
         x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) ∧
-      E.size + P.card ≤ D.size := by
+      E.size + P.card + bonus ≤ D.size := by
   classical
   let Q : Finset (Fin (n+n)) := P.image (Fin.castAdd n)
   have hQcard : Q.card = P.card := Finset.card_image_of_injective _ (Fin.castAdd_injective n n)
@@ -199,7 +199,29 @@ theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
       exact (edgeFun_true I _ _).mpr ⟨r, a, ha, hra, by rw [pair_point]; simp, by rw [pair_line]; simp⟩
     rw [hh]
     decide
-  have hres := restrict_input (n+n) t f (Fin.natAdd n l) false hf hnc
+  obtain ⟨u, hu, hres⟩ : ∃ u,
+      u + bonus ≤ t ∧
+      HasMonoSize (n+n) (fun x => f (Function.update x (Fin.natAdd n l) false)) u := by
+    by_cases hb : bonus = 0
+    · exact ⟨t, by omega, restrict_input (n+n) t f (Fin.natAdd n l) false hf hnc⟩
+    · have hleft := hkeep (by omega)
+      rw [show bonus = 1 by omega]
+      apply one_input _ _ _ _ _ hf _ hnc
+      obtain ⟨p, hp, hpl⟩ := hleft
+      refine ⟨pairInput p l, ?_⟩
+      have hpQ : Fin.castAdd n p ∉ Q := by simpa [Q] using hp
+      have ht : f (pairInput p l) = true := (edgeFun_true I S _).mpr
+        ⟨p, l, hl, hpl, by simp [pin, hpQ, pair_point],
+          by rw [pin, if_neg (no_line Q (fun _ h => h) l), pair_line]; simp⟩
+      have hz : edgeFun I (S.erase l) (pairInput p l) = false := by
+        apply Bool.eq_false_iff.mpr
+        intro hh
+        obtain ⟨_, a, ha, _, _, hax⟩ := (edgeFun_true I _ _).mp hh
+        rw [pair_line] at hax
+        exact (Finset.ne_of_mem_erase ha) (of_decide_eq_true hax)
+      dsimp only
+      rw [pair_line p l l, show (!(decide (l = l))) = false by simp, final_eq, hz, ht]
+      decide
   have heq : (fun x => f (Function.update x (Fin.natAdd n l) false)) = edgeFun I (S.erase l) :=
     funext final_eq
   rw [heq] at hres
@@ -208,6 +230,21 @@ theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
   · rw [hev x, edgeFun_true]
   · rw [hQcard] at ht
     omega
+
+theorem private_points_save {n : ℕ} (I : Fin n → Fin n → Prop)
+    (S : Finset (Fin n)) (l : Fin n) (P : Finset (Fin n)) (D : Circuit)
+    (hl : l ∈ S) (hprivate : ∀ p ∈ P, I p l ∧ ∀ a ∈ S.erase l, ¬ I p a)
+    (hother : ∃ a ∈ S.erase l, ∃ r, I r a)
+    (hm : Monotone2 D)
+    (hex : ∀ x, circuitFun (n+n) D x = true ↔ ∃ p a, a ∈ S ∧ I p a ∧
+      x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) :
+    ∃ E : Circuit, Monotone2 E ∧
+      (∀ x, circuitFun (n+n) E x = true ↔ ∃ p a, a ∈ S.erase l ∧ I p a ∧
+        x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) ∧
+      E.size + P.card ≤ D.size := by
+  classical
+  obtain ⟨E, hmE, he, hs⟩ := private_points_and_line_save I S l P D 0 (by decide) (by omega) hl hprivate hother hm hex
+  exact ⟨E, hmE, he, by omega⟩
 
 end Onlyfr.PrivateIncidenceDrop
 

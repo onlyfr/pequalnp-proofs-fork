@@ -57,11 +57,11 @@ theorem empty_circuit (m : ℕ) :
   · intro x
     simp [circuitFun, Circuit.eval, Circuit.wires, List.getD_eq_default]
 
-theorem hdrop_small {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
+theorem hdrop_small_succ {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
     (hdegree : ∀ a, Fintype.card {p : Fin n // I p a} = q + 1)
     (hjoin : ∀ p r : Fin n, p ≠ r → ∃! a, I p a ∧ I r a)
     (S : Finset (Fin n)) (D : Circuit) (hne : S.Nonempty)
-    (hsmall : 100 * S.card + q ≤ 100 * (q + 2))
+    (hsmall : 100 * S.card + q ≤ 100 * (q + 3))
     (hm : Monotone2 D)
     (hex : ∀ x, circuitFun (n+n) D x = true ↔ ∃ p a, a ∈ S ∧ I p a ∧
       x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) :
@@ -118,9 +118,35 @@ theorem hdrop_small {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
     have hbound : q + 2 - S.card ≤ P.card := by
       convert Onlyfr.PrivateLineAudit.lower_bound pts S l hl q hdeg hunique using 1 <;>
         congr 1 <;> ext p <;> simp [P]
-    obtain ⟨E, hE, hev, hsave⟩ := private_points_save I S l P D hl hpriv hother hm hex
+    by_cases hlarge : q ≤ 100 * P.card
+    · obtain ⟨E, hE, hev, hsave⟩ := private_points_save I S l P D hl hpriv hother hm hex
+      exact ⟨l, hl, E, hE, hev, by omega⟩
+    have hkeep : ∃ p ∉ P, I p l := by
+      by_contra! h
+      have hsub : pts l ⊆ P := by
+        intro p hp
+        by_contra hn
+        exact h p hn ((Finset.mem_filter.mp hp).2)
+      have hc := Finset.card_le_card hsub
+      omega
+    obtain ⟨E, hE, hev, hsave⟩ :=
+      private_points_and_line_save I S l P D 1 (by decide) (fun _ => hkeep) hl hpriv hother hm hex
     refine ⟨l, hl, E, hE, hev, ?_⟩
     omega
+
+theorem hdrop_small {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
+    (hdegree : ∀ a, Fintype.card {p : Fin n // I p a} = q + 1)
+    (hjoin : ∀ p r : Fin n, p ≠ r → ∃! a, I p a ∧ I r a)
+    (S : Finset (Fin n)) (D : Circuit) (hne : S.Nonempty)
+    (hsmall : 100 * S.card + q ≤ 100 * (q + 2))
+    (hm : Monotone2 D)
+    (hex : ∀ x, circuitFun (n+n) D x = true ↔ ∃ p a, a ∈ S ∧ I p a ∧
+      x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) :
+    ∃ removed ∈ S, ∃ E : Circuit, Monotone2 E ∧
+      (∀ x, circuitFun (n+n) E x = true ↔ ∃ p a, a ∈ S.erase removed ∧ I p a ∧
+        x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) ∧
+      100 * E.size + q ≤ 100 * D.size := by
+  exact hdrop_small_succ I hdegree hjoin S D hne (by omega) hm hex
 
 end Onlyfr.PrivateDropSmall
 
