@@ -27,7 +27,7 @@ theorem one_input (m s : ℕ) (f : (Fin m → Bool) → Bool)
     simp
   obtain ⟨p, hread⟩ := Free.read_of_dep hleast.2.2.1 i hd hoi
   obtain ⟨a, ha, hval⟩ := Free.alias_of_rd hleast.1 hleast.2.1 hread
-    {x : Fin m → Bool | x i = b} b (by intro x hx; exact hx)
+    {x : Fin m → Bool | x i = b} b (by intro x hx; rw [vl_input gs x i i.isLt]; exact hx)
   have hp : p < gs.length := by
     obtain ⟨g, hg, _⟩ := hread
     exact List.getElem?_eq_some_iff.mp hg |>.1
@@ -104,7 +104,7 @@ theorem many_inputs {m : ℕ} (P : Finset (Fin m)) :
         simpa only [pin_empty] using hdep ∅ (by simp) i (by simp)
       have hn : ∃ x y : Fin m → Bool,
           f (Function.update x i false) ≠ f (Function.update y i false) := by
-        simpa only [pin_insert, pin_empty] using hnc {i} (by simp)
+        simpa only [pin_insert, pin_empty] using hnc (insert i ∅) (by simp)
       obtain ⟨s', hs', hf'⟩ := one_input m s f i false h hd hn
       have hnc' : ∀ A ⊆ P, ∃ x y : Fin m → Bool,
           (fun x => f (Function.update x i false)) (pin A x) ≠
@@ -127,3 +127,4 @@ theorem many_inputs {m : ℕ} (P : Finset (Fin m)) :
       · simpa only [← pin_insert] using hf
 
 end Onlyfr.PrivateGateDrop
+
