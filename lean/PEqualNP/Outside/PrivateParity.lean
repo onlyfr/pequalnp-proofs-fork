@@ -48,12 +48,13 @@ private theorem point_degree {q : ℕ} (hq : 0 < q) (hn : n = q^2+q+1)
     simp [he]
   have hcol (a) (ha : a ∈ pencil I p) : (U.filter (fun r => I r a)).card = q := by
     have he : U.filter (fun r => I r a) = (pts I a).erase p := by ext r; simp [U, pts, and_assoc]
-    rw [he, Finset.card_erase_of_mem (Finset.mem_filter.mpr ⟨Finset.mem_univ _, (Finset.mem_filter.mp ha).2⟩), hd]
+    have hp : p ∈ pts I a := Finset.mem_filter.mpr ⟨Finset.mem_univ _, (Finset.mem_filter.mp ha).2⟩
+    rw [he, Finset.card_erase_of_mem hp, hd]
     omega
   have h := countSwap U (pencil I p) I
   rw [Finset.sum_const_nat hrow, Finset.sum_const_nat hcol] at h
   have hc : U.card = n-1 := by simp [U]
-  rw [hc, hn] at h
+  rw [hc] at h
   have he : (q+1)*q = (pencil I p).card*q := by nlinarith [Nat.sub_add_cancel (by omega : 1 ≤ q^2+q+1)]
   exact (Nat.eq_of_mul_eq_mul_right hq he).symm
 
@@ -80,9 +81,9 @@ private theorem meet_one {q : ℕ} (hq : 0 < q) (hn : n = q^2+q+1)
   have h := countSwap (pts I a) V I
   rw [Finset.sum_const_nat hrow, hd] at h
   apply exact_of_total V _ 1 (fun t ht => meet_le I hj (Finset.ne_of_mem_erase ht).symm) _ b
+  · exact Finset.mem_erase.mpr ⟨hab.symm, Finset.mem_univ _⟩
   · rw [← h]
     simp [V, hn, pow_two, Nat.add_mul]
-  · exact Finset.mem_erase.mpr ⟨hab.symm, Finset.mem_univ _⟩
 
 end
 
@@ -127,12 +128,59 @@ theorem private_at_boundary {q n : ℕ} (I : Fin n → Fin n → Prop) [Decidabl
     · obtain ⟨l, hl⟩ := hh
       rw [htwo p l (Finset.mem_filter.mp hl).1 (Finset.mem_filter.mp hl).2]
       decide
-    · rw [Finset.not_nonempty_iff_eq_empty.mp hh]
-      decide
+    · simp [Finset.not_nonempty_iff_eq_empty.mp hh]
   rw [h] at heven
   obtain ⟨u, hu⟩ := heven
   obtain ⟨v, hv⟩ := ho
   omega
+
+/-- With q+3 active lines and no private points, triple points partition the lines into triples. -/
+theorem private_at_next {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
+    (hq : 2 ≤ q) (hn : n = q^2+q+1) (hmod : ¬ 3 ∣ q+3)
+    (hd : ∀ a, Fintype.card {p // I p a} = q+1)
+    (hj : ∀ p r, p ≠ r → ∃! l, I p l ∧ I r l)
+    (S : Finset (Fin n)) (hs : S.card = q+3) :
+    ∃ l ∈ S, ∃ p, I p l ∧ ∀ a ∈ S.erase l, ¬ I p a := by
+  classical
+  have hd' (a) : (pts I a).card = q+1 := by simpa [pts, Fintype.card_subtype] using hd a
+  by_contra! hnopriv
+  let d := fun p => (S.filter (I p)).card
+  let T := Finset.univ.filter (fun p => d p = 3)
+  have hone (l) (hl : l ∈ S) : (T.filter (fun p => I p l)).card = 1 := by
+    let V := S.erase l
+    let f := fun p => (V.filter (I p)).card
+    have hpos (p) (hp : p ∈ pts I l) : 1 ≤ f p := by
+      obtain ⟨a, ha, hpa⟩ := hnopriv l hl p (Finset.mem_filter.mp hp).2
+      exact Finset.card_pos.mpr ⟨a, Finset.mem_filter.mpr ⟨ha, hpa⟩⟩
+    have h := countSwap (pts I l) V I
+    have hc (a) (ha : a ∈ V) := meet_one I (by omega : 0 < q) hn hd' hj (Finset.ne_of_mem_erase ha).symm
+    rw [Finset.sum_const_nat hc, mul_one, Finset.card_erase_of_mem hl, hs] at h
+    have hsplit : (∑ p ∈ pts I l, f p) = ∑ p ∈ pts I l, (1 + (f p - 1)) := by
+      apply Finset.sum_congr rfl
+      intro p hp
+      have := hpos p hp
+      omega
+    rw [Finset.sum_add_distrib] at hsplit
+    simp only [Finset.sum_const, smul_eq_mul, mul_one, hd'] at hsplit
+    change (∑ p ∈ pts I l, f p) = _ at h
+    have hexcess : (∑ p ∈ pts I l, (f p - 1)) = 1 := by omega
+    have he : T.filter (fun p => I p l) = (pts I l).filter (fun p => d p = 3) := by
+      ext p; simp [T, pts, and_comm]
+    rw [he, Finset.card_filter, ← hexcess]
+    apply Finset.sum_congr rfl
+    intro p hp
+    have hle := Finset.single_le_sum (f := fun p => f p - 1) (fun _ _ => Nat.zero_le _) hp
+    rw [hexcess] at hle
+    have hrel : f p = d p - 1 := by
+      have he' : V.filter (I p) = (S.filter (I p)).erase l := by ext t; simp [V, and_assoc, and_left_comm]
+      change (V.filter (I p)).card = (S.filter (I p)).card - 1
+      rw [he', Finset.card_erase_of_mem (Finset.mem_filter.mpr ⟨hl, (Finset.mem_filter.mp hp).2⟩)]
+    have := hpos p hp
+    split <;> omega
+  have h := countSwap T S I
+  have hthree (p) (hp : p ∈ T) : (S.filter (I p)).card = 3 := (Finset.mem_filter.mp hp).2
+  rw [Finset.sum_const_nat hthree, Finset.sum_const_nat hone, mul_one, hs] at h
+  exact hmod ⟨T.card, by omega⟩
 
 open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity Onlyfr.PrivateIncidenceDrop
 
@@ -140,7 +188,7 @@ theorem hdrop_199 {n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
     (hn : n = 199^2+199+1)
     (hd : ∀ a, Fintype.card {p // I p a} = 199+1)
     (hj : ∀ p r, p ≠ r → ∃! l, I p l ∧ I r l)
-    (S : Finset (Fin n)) (D : Circuit) (hne : S.Nonempty) (hs : S.card ≤ 201)
+    (S : Finset (Fin n)) (D : Circuit) (hne : S.Nonempty) (hs : S.card ≤ 202)
     (hm : Monotone2 D)
     (hex : ∀ x, circuitFun (n+n) D x = true ↔ ∃ p a, a ∈ S ∧ I p a ∧
       x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) :
@@ -151,7 +199,10 @@ theorem hdrop_199 {n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
   classical
   by_cases h : S.card ≤ 200
   · exact Onlyfr.PrivateDropSmall.hdrop_small_succ I hd hj S D hne (by omega) hm hex
-  obtain ⟨l, hl, p, hp, hpv⟩ := private_at_boundary (q := 199) I (by decide) (by decide) hn hd hj S (by omega)
+  obtain ⟨l, hl, p, hp, hpv⟩ : ∃ l ∈ S, ∃ p, I p l ∧ ∀ a ∈ S.erase l, ¬ I p a := by
+    by_cases he : S.card = 201
+    · exact private_at_boundary (q := 199) I (by decide) (by decide) hn hd hj S he
+    · exact private_at_next (q := 199) I (by decide) hn (by decide) hd hj S (by omega)
   have hcard (a) : (pts I a).card = 200 := by simpa [pts, Fintype.card_subtype] using hd a
   have hk : ∃ r ∉ ({p} : Finset (Fin n)), I r l := by
     by_contra! hall
