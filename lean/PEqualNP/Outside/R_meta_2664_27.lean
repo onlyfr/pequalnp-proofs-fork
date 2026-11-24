@@ -37,7 +37,7 @@ theorem PEqualNP.Outside.R_meta_2664_27
   have go (k : ℕ) : ∀ (S : Finset (Fin n)) (D : PEqualNP.CircuitLowerBounds.Circuit),
       S.card = k → PEqualNP.MetaComplexity.Monotone2 D → exactOn S D → k * q ≤ 100 * D.size := by
     induction k using Nat.strong_induction_on with
-    | h k ih =>
+    | ind k ih =>
       intro S D hk hmono hex
       by_cases hs : S.Nonempty
       · obtain ⟨l, hl, E, he, hx, hcost⟩ := hdrop q n I hq hn hdeg hpair S D hs hmono hex
