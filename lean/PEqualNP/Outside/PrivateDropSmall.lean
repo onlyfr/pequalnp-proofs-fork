@@ -31,7 +31,7 @@ theorem star_cost {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
       obtain ⟨p, hp, he⟩ := Finset.mem_image.mp (hA hh)
       have he' : p = r := Fin.castAdd_injective n n he
       subst p
-      exact Finset.not_mem_erase r pts hp
+      exact (Finset.mem_erase.mp hp).1 rfl
     have hlA : Fin.natAdd n l ∉ A := by
       intro hh
       obtain ⟨p, _, he⟩ := Finset.mem_image.mp (hA hh)
@@ -92,7 +92,7 @@ theorem hdrop_small {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
               intro hmem
               have := Finset.mem_erase.mpr ⟨ha, hmem⟩
               rw [he] at this
-              exact Finset.not_mem_empty a this
+              simpa using this
             simp [ha, hna]
         exact hsingle hs
       obtain ⟨a, ha⟩ := hne'
@@ -115,10 +115,12 @@ theorem hdrop_small {q n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
       exact (hjoin p r hpr).unique
         ⟨(Finset.mem_filter.mp hpa).2, (Finset.mem_filter.mp hra).2⟩
         ⟨(Finset.mem_filter.mp hpb).2, (Finset.mem_filter.mp hrb).2⟩
-    have hbound : q + 2 - S.card ≤ P.card :=
-      Onlyfr.PrivateLineAudit.lower_bound pts S l hl q hdeg hunique
+    have hbound : q + 2 - S.card ≤ P.card := by
+      convert Onlyfr.PrivateLineAudit.lower_bound pts S l hl q hdeg hunique using 1 <;>
+        congr 1 <;> ext p <;> simp [P]
     obtain ⟨E, hE, hev, hsave⟩ := private_points_save I S l P D hl hpriv hother hm hex
     refine ⟨l, hl, E, hE, hev, ?_⟩
     omega
 
 end Onlyfr.PrivateDropSmall
+
