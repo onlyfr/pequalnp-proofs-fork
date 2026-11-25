@@ -25,6 +25,10 @@ If this point is private, delete its line. The private pin gives B ≥ 1 with k=
 
 Conversely one can append the deleted row to any optimal circuit for E with s-1 OR gates to collect the row's s points, one AND with y_l, and a final OR. Thus D-E ≤ s+1. In particular the marginal is exactly four at s=3 and is in [4,1011] at s=1010. Neither endpoint at s=1010 is asserted to be attained.
 
+## Transfer to the nearby layers of the same plane
+
+In an s-line subfamily of the original m=1010 lines, each line has m-s extra private inputs in addition to its canonical one. The same pin-and-rebuild equality gives total cost C_s+s(m-s). Subtracting the corresponding (s-1)-line cost shows that the deletion marginal in this plane is the canonical s-line marginal plus m-s. Therefore for 3 ≤ s ≤ 1003 the marginal is at least 4+1010-s ≥ 11. For s=1004 through 1010 this bound alone is inconclusive.
+
 ## Other tests at s=1010
 
 * Before any pin, setting u_l=true gives E OR y_l, of exact cost E+1. Setting y_l=true gives the canonical core ORed with the 1010 independent inputs in the row, also of exact cost E+1. Consequently ten distinct readers of either u_l or y_l in an optimal circuit imply D-E ≥ 11 by fixing that input to true.
