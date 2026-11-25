@@ -87,9 +87,9 @@ theorem monotone2_of_has {m s : ℕ} {f : (Fin m → Bool) → Bool}
   · exact Or.inr ho
   · exact False.elim (hn g hg ho)
 
-theorem point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
-    (S : Finset (Fin n)) (l : Fin n) (P : Finset (Fin n))
-    (hl : l ∈ S) (hpoints : ∀ p ∈ P, I p l)
+theorem selected_point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
+    (S P : Finset (Fin n))
+    (hpoints : ∀ p ∈ P, ∃ l ∈ S, I p l)
     (A : Finset (Fin (n+n))) (hA : A ⊆ P.image (Fin.castAdd n))
     (i : Fin (n+n)) (hi : i ∈ P.image (Fin.castAdd n) \ A) :
     Dep (fun x => edgeFun I S (pin A x)) i := by
@@ -100,10 +100,11 @@ theorem point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
     exact left_ne_right p a hp
   obtain ⟨hiQ, hiA⟩ := Finset.mem_sdiff.mp hi
   obtain ⟨p, hp, rfl⟩ := Finset.mem_image.mp hiQ
+  obtain ⟨l,hl,hpl⟩ := hpoints p hp
   refine ⟨pairInput p l, ?_⟩
   have ht : edgeFun I S (pin A (pairInput p l)) = true := by
     apply (edgeFun_true I S _).mpr
-    exact ⟨p, l, hl, hpoints p hp,
+    exact ⟨p, l, hl, hpl,
       by simp [pin, hiA, pair_point], by rw [pin, if_neg (no_line l), pair_line]; simp⟩
   have hz : edgeFun I S (pin A (Function.update (pairInput p l)
       (Fin.castAdd n p) (!(pairInput p l (Fin.castAdd n p))))) = false := by
@@ -117,6 +118,14 @@ theorem point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
   dsimp only
   rw [hz, ht]
   decide
+
+theorem point_deps {n : ℕ} (I : Fin n → Fin n → Prop)
+    (S : Finset (Fin n)) (l : Fin n) (P : Finset (Fin n))
+    (hl : l ∈ S) (hpoints : ∀ p ∈ P, I p l)
+    (A : Finset (Fin (n+n))) (hA : A ⊆ P.image (Fin.castAdd n))
+    (i : Fin (n+n)) (hi : i ∈ P.image (Fin.castAdd n) \ A) :
+    Dep (fun x => edgeFun I S (pin A x)) i :=
+  selected_point_deps I S P (fun p hp => ⟨l,hl,hpoints p hp⟩) A hA i hi
 
 theorem private_points_and_line_save {n : ℕ} (I : Fin n → Fin n → Prop)
     (S : Finset (Fin n)) (l : Fin n) (P : Finset (Fin n)) (D : Circuit)

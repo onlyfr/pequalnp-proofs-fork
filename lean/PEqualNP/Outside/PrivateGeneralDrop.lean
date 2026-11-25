@@ -167,4 +167,38 @@ theorem gain_spike_iff {α : Type*} [DecidableEq α] (q k : ℕ) (cost : Finset 
   ring_nf
   omega
 
+/-- A lower bound for a point restriction lifts by one for each pinned
+incident point, including points shared by different active lines. -/
+theorem lift_point_restriction {n : ℕ} (I : Fin n → Fin n → Prop)
+    (S P : Finset (Fin n)) (hpoints : ∀ p ∈ P, ∃ l ∈ S, I p l)
+    (hkeep : ∃ p ∉ P, ∃ l ∈ S, I p l) {s L : ℕ}
+    (hf : HasMonoSize (n+n) (edgeFun I S) s)
+    (hlower : ∀ t, HasMonoSize (n+n) (fun x => edgeFun I S
+      (Onlyfr.PrivateGateDrop.pin (P.image (Fin.castAdd n)) x)) t → L ≤ t) : L + P.card ≤ s := by
+  classical
+  let Q := P.image (Fin.castAdd n)
+  obtain ⟨p,hp,l,hl,hpl⟩ := hkeep
+  have nc (A : Finset (Fin (n+n))) (hA : A ⊆ Q) :
+      ∃ x y, edgeFun I S (Onlyfr.PrivateGateDrop.pin A x) ≠ edgeFun I S (Onlyfr.PrivateGateDrop.pin A y) := by
+    have hpA : Fin.castAdd n p ∉ A := by
+      intro h
+      obtain ⟨v,hv,he⟩ := Finset.mem_image.mp (hA h)
+      exact hp ((Fin.castAdd_injective n n he) ▸ hv)
+    have hlA : Fin.natAdd n l ∉ A := by
+      intro h
+      obtain ⟨v,_,he⟩ := Finset.mem_image.mp (hA h)
+      exact left_ne_right v l he
+    have ht : edgeFun I S (Onlyfr.PrivateGateDrop.pin A (pairInput p l)) = true := by
+      exact (edgeFun_true I S _).mpr ⟨p,l,hl,hpl,
+        by simp [Onlyfr.PrivateGateDrop.pin,hpA,pair_point],
+        by rw [Onlyfr.PrivateGateDrop.pin,if_neg hlA,pair_line]; simp⟩
+    have hz : Onlyfr.PrivateGateDrop.pin A (fun _ => false) = fun _ => false := by
+      funext z; simp [Onlyfr.PrivateGateDrop.pin]
+    exact ⟨pairInput p l,fun _ => false,by rw [ht,hz,edgeFun_zero]; decide⟩
+  obtain ⟨t,ht,hres⟩ := Onlyfr.PrivateGateDrop.many_inputs Q (edgeFun I S) s hf nc
+    (selected_point_deps I S P hpoints)
+  have h := hlower t hres
+  have hcard : Q.card = P.card := Finset.card_image_of_injective _ (Fin.castAdd_injective n n)
+  omega
+
 end Onlyfr.PrivateGeneralDrop
