@@ -75,8 +75,10 @@ theorem private_of_concurrent {n q : ℕ} (I : Fin n → Fin n → Prop) [Decida
     exact (hj p r hpr).unique ⟨(Finset.mem_filter.mp h1).2,(Finset.mem_filter.mp h2).2⟩
       ⟨(Finset.mem_filter.mp h3).2,(Finset.mem_filter.mp h4).2⟩
   have hmem := Finset.mem_of_mem_erase hb
-  have hc := Onlyfr.PrivateLineAudit.lower_bound pts (S.erase b) l
-    (Finset.mem_erase.mpr ⟨hbl.symm,hl⟩) q hdeg hu
+  have hc : q+2-(S.erase b).card ≤ ((pts l).filter
+      (fun p => ∀ t ∈ (S.erase b).erase l, p ∉ pts t)).card := by
+    convert Onlyfr.PrivateLineAudit.lower_bound pts (S.erase b) l
+      (Finset.mem_erase.mpr ⟨hbl.symm,hl⟩) q hdeg hu using 1 <;> congr 1 <;> ext p <;> simp
   have sub : (pts l).filter (fun p => ∀ t ∈ (S.erase b).erase l, p ∉ pts t) ⊆
       (pts l).filter (fun p => ∀ t ∈ S.erase l, ¬ I p t) := by
     intro p hp
@@ -126,7 +128,7 @@ partner gate itself is dead after setting the input false. -/
 theorem save_exclusive_partner {m : ℕ} {gs : List Gate} {o d r : ℕ} {f : (Fin m → Bool) → Bool}
     (hL : MLeast m f gs o) (i : Fin m) {g : Gate} (hg : gs[r]? = some g) (hop : g.op = .and)
     (hi : (i : ℕ) ∈ g.inputs) (hd : m+d ∈ g.inputs)
-    (honly : ∀ j, Reads gs j (m+d) → j = r) (hout : o ≠ m+d)
+    (honly : ∀ j, Reads gs j (m+d) → j = r)
     (hnc : ∃ x y, f (Function.update x i false) ≠ f (Function.update y i false)) :
     ∃ t, t+3 ≤ gs.length ∧ HasMonoSize m (fun x => f (Function.update x i false)) t := by
   classical
@@ -134,6 +136,16 @@ theorem save_exclusive_partner {m : ℕ} {gs : List Gate} {o d r : ℕ} {f : (Fi
   have hr : Reads gs r i := ⟨g,hg,hi⟩
   have hdr := reads_lt hL.1 (show Reads gs r (m+d) from ⟨g,hg,hd⟩)
   have hrlen := reads_len hr
+  have hout : o ≠ m+d := by
+    intro he
+    let last := gs.length-1
+    have hlast : last < gs.length := by dsimp [last]; omega
+    have hne : o ≠ m+last := by dsimp [last]; omega
+    obtain ⟨j,hj⟩ := Free.live Removal.ToolRemoval_proof hL ⟨_,_,hxy⟩ hlast hne
+    have h1 := reads_lt hL.1 hj
+    have h2 := reads_len hj
+    dsimp [last] at h1
+    omega
   let P : Set (Fin m → Bool) := {z | z i = false}
   have hz (z) (hz : z ∈ P) : vl gs z (m+r) = false := by
     exact (AndPath.step (AndPath.input (m := m) (gs := gs) (i := i)) hg hop hi).zero ⟨hL.1,hL.2.1⟩ z hz
@@ -166,14 +178,14 @@ theorem save_exclusive_partner {m : ℕ} {gs : List Gate} {o d r : ℕ} {f : (Fi
   have rem : Removable m gs o P A target := by
     intro j h
     simp only [A,Finset.mem_insert,Finset.mem_singleton] at h
-    rcases h with rfl | rfl | rfl
+    rcases h with h | h | h <;> subst j
     · refine ⟨by omega,Or.inr ⟨by simp [target],hout,?_,?_⟩⟩
       · intro v hv
         rw [honly v hv]
         simp [A]
       · intro v _
         simp only [target]
-        by_cases hv : v = d <;> by_cases hw : v = r <;> simp [hv,hw,hid,htd]
+        by_cases hv : v = d <;> by_cases hw : v = r <;> simp [hv,hw,hid,htd,hrd]
     · refine ⟨hrlen,Or.inl ⟨i,by simp [target,hrd],reads_lt hL.1 hr,?_⟩⟩
       intro z h
       rw [hz z h,vl_input gs z i i.isLt]
@@ -185,7 +197,7 @@ theorem save_exclusive_partner {m : ℕ} {gs : List Gate} {o d r : ℕ} {f : (Fi
     intro j _ hj
     by_cases h : j = d
     · simpa [h] using hout
-    · by_cases h' : j = r <;> simp [target,h,h'] at hj)
+    · by_cases h' : j = r <;> simp [target,h,h',hrd] at hj)
   have heq : (fun z => vl gs' (Function.update z i false) (map o)) =
       (fun z => f (Function.update z i false)) := by
     funext z
