@@ -37,9 +37,10 @@ theorem lift_forest {n : ℕ} (I : Fin n → Fin n → Prop) (S P : Finset (Fin 
     · intro a ha
       have h := hc _ _ (adj _ _ (hlf a ha).1 ha (hlf a ha).2)
       change pick a ∈ T
-      by_cases hm : Fin.natAdd n a ∈ T
-      · simp [pick, hm]
-      · simpa [pick, hm] using h.resolve_right hm
+      unfold pick
+      split
+      · assumption
+      · exact h.resolve_right (by assumption)
     · intro a ha b hb he
       unfold pick at he
       split at he <;> split at he
