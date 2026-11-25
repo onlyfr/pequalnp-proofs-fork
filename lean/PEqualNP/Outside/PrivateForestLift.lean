@@ -141,4 +141,104 @@ theorem tangent_no_triple {K : Type*} [Field K] {a b c x y : K}
   have h₂ := ((tangent_pair hac).mp ⟨ha,hc⟩).1
   linear_combination h₁ - h₂
 
+/-- None indexes the line at infinity; a right-hand point is a direction,
+with None reserved for the vertical direction. -/
+def arcInc {K : Type*} [Field K] : Option K → (K × K) ⊕ Option K → Prop
+  | some a, .inl (x,y) => y = a*x + a^2
+  | some a, .inr d => d = some a
+  | none, .inl _ => False
+  | none, .inr _ => True
+
+theorem arc_pair_unique {K : Type*} [Field K] {l m : Option K} (hne : l ≠ m) :
+    ∃! p, arcInc l p ∧ arcInc m p := by
+  cases l with
+  | none =>
+    cases m with
+    | none => exact (hne rfl).elim
+    | some b =>
+      refine ⟨.inr (some b), ⟨trivial,rfl⟩, ?_⟩
+      rintro (p|d) ⟨ha,hb⟩
+      · exact False.elim ha
+      · exact congrArg Sum.inr hb
+  | some a =>
+    cases m with
+    | none =>
+      refine ⟨.inr (some a), ⟨rfl,trivial⟩, ?_⟩
+      rintro (p|d) ⟨ha,hb⟩
+      · exact False.elim hb
+      · exact congrArg Sum.inr ha
+    | some b =>
+      have hab : a ≠ b := fun h => hne (congrArg some h)
+      refine ⟨.inl (-(a+b),-(a*b)), (tangent_pair hab).mpr ⟨rfl,rfl⟩, ?_⟩
+      rintro (⟨x,y⟩|d) ⟨ha,hb⟩
+      · have h := (tangent_pair hab).mp ⟨ha,hb⟩
+        exact congrArg Sum.inl (Prod.ext h.1 h.2)
+      · exact False.elim (hne (ha.symm.trans hb))
+
+theorem arc_no_triple {K : Type*} [Field K] {l m r : Option K}
+    (hlm : l ≠ m) (hlr : l ≠ r) (hmr : m ≠ r) (p : (K × K) ⊕ Option K) :
+    arcInc l p → arcInc m p → ¬ arcInc r p := by
+  cases p with
+  | inl p =>
+    obtain ⟨x,y⟩ := p
+    cases l <;> cases m <;> cases r <;> simp only [arcInc, false_implies, not_false_eq_true, implies_true]
+    intro ha hb hc
+    exact hmr (congrArg some (tangent_no_triple (fun h => hlm (congrArg some h))
+      (fun h => hlr (congrArg some h)) ha hb hc))
+  | inr d =>
+    cases l <;> cases m <;> cases r <;> simp_all [arcInc]
+
+noncomputable def arcPts {K : Type*} [Field K] [Fintype K] (l : Option K) :
+    Finset ((K × K) ⊕ Option K) := by
+  classical
+  exact Finset.univ.filter (arcInc l)
+
+@[simp] theorem mem_arcPts {K : Type*} [Field K] [Fintype K]
+    {l : Option K} {p : (K × K) ⊕ Option K} : p ∈ arcPts l ↔ arcInc l p := by
+  classical
+  simp [arcPts]
+
+theorem projective_arc_private_card {K : Type*} [Field K] [Fintype K] [DecidableEq K]
+    (S : Finset (Option K)) (l : Option K) (hl : l ∈ S) :
+    ((arcPts l) \ (S.erase l).biUnion (fun a => arcPts l ∩ arcPts a)).card
+      + (S.card - 1) = (arcPts l).card := by
+  apply arc_private_card _ _ _ hl
+  · intro a ha
+    obtain ⟨p, hp, hu⟩ := arc_pair_unique (Finset.ne_of_mem_erase ha).symm
+    apply Finset.card_eq_one.mpr
+    refine ⟨p, ?_⟩
+    ext v
+    simp only [Finset.mem_inter, mem_arcPts, Finset.mem_singleton]
+    exact ⟨hu v, fun h => h ▸ hp⟩
+  · intro a ha b hb hab p hp hpa hpb
+    exact arc_no_triple (Finset.ne_of_mem_erase ha).symm
+      (Finset.ne_of_mem_erase hb).symm hab p (mem_arcPts.mp hp)
+      (mem_arcPts.mp hpa) (mem_arcPts.mp hpb)
+
+theorem arcPts_card {K : Type*} [Field K] [Fintype K] (l : Option K) :
+    (arcPts l).card = Fintype.card K + 1 := by
+  classical
+  cases l with
+  | none =>
+    have h : arcPts (none : Option K) = Finset.univ.image
+        (Sum.inr : Option K → (K × K) ⊕ Option K) := by
+      ext p
+      cases p <;> simp [arcInc]
+    rw [h, Finset.card_image_of_injective _ Sum.inr_injective]
+    simp
+  | some a =>
+    let f (x : K) : (K × K) ⊕ Option K := .inl (x,a*x+a^2)
+    have hi : Function.Injective f := by
+      intro x y h
+      exact congrArg Prod.fst (Sum.inl.inj h)
+    have h : arcPts (some a) = insert (.inr (some a)) (Finset.univ.image f) := by
+      ext p
+      cases p with
+      | inl p =>
+        obtain ⟨x,y⟩ := p
+        simp [f, arcInc, eq_comm]
+      | inr d => simp [f, arcInc]
+    rw [h, Finset.card_insert_of_notMem (by simp [f]), Finset.card_image_of_injective _ hi]
+    simp
+
 end Onlyfr.PrivateForestLift
