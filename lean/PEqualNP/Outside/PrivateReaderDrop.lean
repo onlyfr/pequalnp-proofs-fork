@@ -6,7 +6,7 @@ open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity
 open PEqualNP.MetaComplexity.Helpers PEqualNP.MetaComplexity.Helpers.Readers
 open PEqualNP.MetaComplexity.Loc
 
-private theorem save_aliases {m : ℕ} {f : (Fin m → Bool) → Bool} {gs : List Gate} {o : ℕ}
+theorem save_aliases {m : ℕ} {f : (Fin m → Bool) → Bool} {gs : List Gate} {o : ℕ}
     (hL : MLeast m f gs o) (i : Fin m) (b : Bool)
     (hnc : ∃ x y, f (Function.update x i b) ≠ f (Function.update y i b))
     (R : Finset ℕ) (hlen : ∀ r ∈ R, r < gs.length)

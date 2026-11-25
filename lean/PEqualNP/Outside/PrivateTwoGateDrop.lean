@@ -8,7 +8,7 @@ open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity PEqualNP.MetaComplexity
 open PEqualNP.MetaComplexity.Helpers.Readers PEqualNP.MetaComplexity.Loc
 open Onlyfr.PrivateIncidenceDrop Onlyfr.PrivateOrReader Onlyfr.PrivateReaderDrop
 
-private theorem erase_eq {n : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin n)) (l : Fin n)
+theorem erase_eq {n : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin n)) (l : Fin n)
     (x : Fin (n+n) → Bool) :
     edgeFun I S (Function.update x (Fin.natAdd n l) false) = edgeFun I (S.erase l) x := by
   apply Bool.eq_iff_iff.mpr
