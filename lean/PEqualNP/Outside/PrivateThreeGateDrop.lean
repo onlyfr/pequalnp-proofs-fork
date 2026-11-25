@@ -121,4 +121,79 @@ theorem hdrop_concurrent {n q : ℕ} (I : Fin n → Fin n → Prop) [DecidableRe
     (fun _ => ⟨v,hv,hvl⟩) hl hpriv ⟨a,ha,v,hva⟩ hm hex
   exact ⟨E,hE,hev,by omega⟩
 
+/-- If the partner of an AND input is a gate feeding only that AND, the
+partner gate itself is dead after setting the input false. -/
+theorem save_exclusive_partner {m : ℕ} {gs : List Gate} {o d r : ℕ} {f : (Fin m → Bool) → Bool}
+    (hL : MLeast m f gs o) (i : Fin m) {g : Gate} (hg : gs[r]? = some g) (hop : g.op = .and)
+    (hi : (i : ℕ) ∈ g.inputs) (hd : m+d ∈ g.inputs)
+    (honly : ∀ j, Reads gs j (m+d) → j = r) (hout : o ≠ m+d)
+    (hnc : ∃ x y, f (Function.update x i false) ≠ f (Function.update y i false)) :
+    ∃ t, t+3 ≤ gs.length ∧ HasMonoSize m (fun x => f (Function.update x i false)) t := by
+  classical
+  obtain ⟨x,y,hxy⟩ := hnc
+  have hr : Reads gs r i := ⟨g,hg,hi⟩
+  have hdr := reads_lt hL.1 (show Reads gs r (m+d) from ⟨g,hg,hd⟩)
+  have hrlen := reads_len hr
+  let P : Set (Fin m → Bool) := {z | z i = false}
+  have hz (z) (hz : z ∈ P) : vl gs z (m+r) = false := by
+    exact (AndPath.step (AndPath.input (m := m) (gs := gs) (i := i)) hg hop hi).zero ⟨hL.1,hL.2.1⟩ z hz
+  have hor : o ≠ m+r := by
+    intro he
+    apply hxy
+    rw [← hL.2.2.1, ← hL.2.2.1, he,hz _ (Function.update_self i false x),hz _ (Function.update_self i false y)]
+  obtain ⟨u,hu⟩ := Free.live Removal.ToolRemoval_proof hL ⟨_,_,hxy⟩ hrlen hor
+  have hru := reads_lt hL.1 hu
+  have hul := reads_len hu
+  obtain ⟨gu,hgu,hw⟩ := hu
+  have havoid : m+d ∉ gu.inputs := fun h => (by omega : u ≠ r) (honly u ⟨gu,hgu,h⟩)
+  obtain ⟨j,k,hj,hk,hin,he⟩ := Free.vl_bin hL.1 hL.2.1 hgu
+  have hmem : m+r = j ∨ m+r = k := by simpa [hin] using hw
+  have htarget : ∃ t, t < m+u ∧ t ≠ m+d ∧ ∀ z ∈ P, vl gs z (m+u) = vl gs z t := by
+    have hjd : j ≠ m+d := by rintro rfl; exact havoid (by simp [hin])
+    have hkd : k ≠ m+d := by rintro rfl; exact havoid (by simp [hin])
+    rcases hmem with rfl | rfl <;> rcases he with he | he
+    · exact ⟨_,hj,hjd,fun z h => by rw [he,hz z h]; simp⟩
+    · exact ⟨_,hk,hkd,fun z h => by rw [he,hz z h]; simp⟩
+    · exact ⟨_,hk,hkd,fun z h => by rw [he,hz z h]; simp⟩
+    · exact ⟨_,hj,hjd,fun z h => by rw [he,hz z h]; simp⟩
+  obtain ⟨t,ht,htd,htv⟩ := htarget
+  let A : Finset ℕ := {d,r,u}
+  let target (j : ℕ) : Option ℕ := if j = d then none else if j = r then some i.val else some t
+  have hrd : r ≠ d := by omega
+  have hud : u ≠ d := by omega
+  have hur : u ≠ r := by omega
+  have hid : i.val ≠ m+d := by have := i.isLt; omega
+  have rem : Removable m gs o P A target := by
+    intro j h
+    simp only [A,Finset.mem_insert,Finset.mem_singleton] at h
+    rcases h with rfl | rfl | rfl
+    · refine ⟨by omega,Or.inr ⟨by simp [target],hout,?_,?_⟩⟩
+      · intro v hv
+        rw [honly v hv]
+        simp [A]
+      · intro v _
+        simp only [target]
+        by_cases hv : v = d <;> by_cases hw : v = r <;> simp [hv,hw,hid,htd]
+    · refine ⟨hrlen,Or.inl ⟨i,by simp [target,hrd],reads_lt hL.1 hr,?_⟩⟩
+      intro z h
+      rw [hz z h,vl_input gs z i i.isLt]
+      exact h.symm
+    · exact ⟨hul,Or.inl ⟨t,by simp [target,hud,hur],ht,htv⟩⟩
+  obtain ⟨gs',map,hc,hfree,hlen,_,hval⟩ :=
+    Removal.ToolRemoval_proof m gs o P A target hL.1 rem
+  have hh := hval o (Free.out_lt hL.2.2.1 ⟨_,_,hxy⟩) (by
+    intro j _ hj
+    by_cases h : j = d
+    · simpa [h] using hout
+    · by_cases h' : j = r <;> simp [target,h,h'] at hj)
+  have heq : (fun z => vl gs' (Function.update z i false) (map o)) =
+      (fun z => f (Function.update z i false)) := by
+    funext z
+    exact (hh.2 _ (Function.update_self i false z)).trans (hL.2.2.1 _)
+  have hres := Clean.ToolRestrict_proof m gs' (map o) i false ⟨hc,hfree hL.2.1⟩
+    ⟨x,y,by change (fun z => vl gs' (Function.update z i false) (map o)) x ≠
+                     (fun z => vl gs' (Function.update z i false) (map o)) y; rw [heq]; exact hxy⟩
+  have hcA : A.card = 3 := by simp [A,Ne.symm hrd,Ne.symm hud,Ne.symm hur]
+  exact ⟨_,by omega,heq ▸ hres⟩
+
 end Onlyfr.PrivateThreeGateDrop
