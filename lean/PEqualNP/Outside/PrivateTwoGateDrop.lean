@@ -82,7 +82,8 @@ theorem two_gate_drop {n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
       obtain ⟨x,y,hh⟩ := hnc a ha
       apply hh
       rw [← hL.2.2.1, ← hL.2.2.1, he, vl_input gs _ i i.isLt, vl_input gs _ i i.isLt]
-      simp [i]
+      change Function.update x i false i = Function.update y i false i
+      simp
     obtain ⟨k,hk⟩ := Free.read_of_dep hL.2.2.1 i dep ho
     exact ⟨k,a,ha,hk⟩
   let r := Nat.find someRead
@@ -91,7 +92,7 @@ theorem two_gate_drop {n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
   have first : ∀ k v, Reads gs k v → active S v → r ≤ k := by
     rintro k v hk ⟨a,ha,rfl⟩
     exact Nat.find_min' someRead ⟨a,ha,hk⟩
-  have finish (a) (ha : a ∈ S) (h : ∃ t, t+2 ≤ gs.length ∧ HasMonoSize (n+n)
+  have finish (a) (h : ∃ t, t+2 ≤ gs.length ∧ HasMonoSize (n+n)
       (fun x => edgeFun I S (Function.update x (Fin.natAdd n a) false)) t) :
       ∃ E : Circuit, Monotone2 E ∧ (∀ x, circuitFun (n+n) E x = edgeFun I (S.erase a) x) ∧
         E.size+2 ≤ D.size := by
@@ -101,7 +102,7 @@ theorem two_gate_drop {n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
   by_cases many : ∃ a ∈ S, ∃ u v, u ≠ v ∧ Reads gs u (Fin.natAdd n a) ∧ Reads gs v (Fin.natAdd n a)
   · obtain ⟨a,ha,u,v,huv,hu,hv⟩ := many
     apply Exists.intro a
-    refine ⟨ha,finish a ha ?_⟩
+    refine ⟨ha,finish a ?_⟩
     have h := save_readers hL _ false (hnc a ha) {u,v} (by
       intro j hj
       simp only [Finset.mem_insert,Finset.mem_singleton] at hj
@@ -114,7 +115,7 @@ theorem two_gate_drop {n : ℕ} (I : Fin n → Fin n → Prop) [DecidableRel I]
     exact many ⟨a,ha,k,r,he,hk,h⟩
   obtain ⟨g,hg,hinl⟩ := hr'
   by_cases hand : g.op = .and
-  · exact ⟨l,hl,finish l hl (save_and_reader hL _ hg hand hinl (hnc l hl))⟩
+  · exact ⟨l,hl,finish l (save_and_reader hL _ hg hand hinl (hnc l hl))⟩
   obtain ⟨w,hop,hor⟩ : ∃ w, g.op = .or ∧
       (g.inputs = [(Fin.natAdd n l : ℕ),w] ∨ g.inputs = [w,(Fin.natAdd n l : ℕ)]) := by
     rcases hL.1 r g hg with ⟨hn,_⟩ | ⟨hop,j,k,_,_,hin⟩
