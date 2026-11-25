@@ -93,4 +93,52 @@ theorem lift_forest {n : ℕ} (I : Fin n → Fin n → Prop) (S P : Finset (Fin 
       omega)
   omega
 
+/-- On an arc of lines, deleting arbitrary lines leaves exactly one shared
+point per other surviving line. The private-point count is therefore exact. -/
+theorem arc_private_card {A B : Type*} [DecidableEq A] [DecidableEq B]
+    (pts : B → Finset A) (S : Finset B) (l : B) (hl : l ∈ S)
+    (pair : ∀ a ∈ S.erase l, (pts l ∩ pts a).card = 1)
+    (triple : ∀ a ∈ S.erase l, ∀ b ∈ S.erase l, a ≠ b →
+      ∀ p ∈ pts l, p ∈ pts a → p ∉ pts b) :
+    ((pts l) \ (S.erase l).biUnion (fun a => pts l ∩ pts a)).card
+      + (S.card - 1) = (pts l).card := by
+  classical
+  let shared := (S.erase l).biUnion (fun a => pts l ∩ pts a)
+  have count : shared.card = (S.erase l).card := by
+    unfold shared
+    rw [Finset.card_biUnion]
+    · simp [Finset.sum_congr rfl pair]
+    · intro a ha b hb hab
+      apply Finset.disjoint_left.mpr
+      intro p hp hq
+      exact triple a ha b hb hab p (Finset.mem_inter.mp hp).1
+        (Finset.mem_inter.mp hp).2 (Finset.mem_inter.mp hq).2
+  have sub : shared ⊆ pts l := by
+    intro p hp
+    obtain ⟨a, _, h⟩ := Finset.mem_biUnion.mp hp
+    exact (Finset.mem_inter.mp h).1
+  change ((pts l) \ shared).card + _ = _
+  rw [← Finset.card_erase_of_mem hl, ← count, Finset.card_sdiff_add_card_eq_card sub]
+
+/-- In the affine chart the two tangents with parameters a and b meet at
+(-(a+b), -a*b). Different b give different intersections on line a. -/
+theorem tangent_pair {K : Type*} [Field K] {a b x y : K} (hab : a ≠ b) :
+    y = a*x + a^2 ∧ y = b*x + b^2 ↔ x = -(a+b) ∧ y = -(a*b) := by
+  constructor
+  · rintro ⟨ha, hb⟩
+    have h : (a-b)*(x+a+b) = 0 := by linear_combination hb - ha
+    have hx := (mul_eq_zero.mp h).resolve_left (sub_ne_zero.mpr hab)
+    constructor
+    · linear_combination hx
+    · linear_combination ha + a*hx
+  · rintro ⟨rfl, rfl⟩
+    constructor <;> ring
+
+theorem tangent_no_triple {K : Type*} [Field K] {a b c x y : K}
+    (hab : a ≠ b) (hac : a ≠ c) (ha : y = a*x + a^2)
+    (hb : y = b*x + b^2) (hc : y = c*x + c^2) : b = c := by
+  have h₁ := ((tangent_pair hab).mp ⟨ha,hb⟩).1
+  have h₂ := ((tangent_pair hac).mp ⟨ha,hc⟩).1
+  linear_combination h₁ - h₂
+
 end Onlyfr.PrivateForestLift
