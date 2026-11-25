@@ -146,4 +146,25 @@ theorem deficit_witness {α : Type*} [DecidableEq α] (cost : Finset α → ℕ)
       (fun T hT ht => hbase T (hT.trans (Finset.erase_subset _ _)) ht) (by omega)
     exact ⟨T,hT.trans (Finset.erase_subset _ _),hcard,hfail⟩
 
+/-- Size saved against the circuit with one incidence star per active line.
+Integer subtraction keeps the identity independent of a separate upper bound. -/
+def starGain {α : Type*} (q : ℕ) (cost : Finset α → ℕ) (S : Finset α) : ℤ :=
+  (q+2 : ℕ) * (S.card : ℤ) - 1 - cost S
+
+/-- At a non-singleton layer a failed deletion is exactly an increase of
+at least q+3-k in the saving over the star construction. -/
+theorem gain_spike_iff {α : Type*} [DecidableEq α] (q k : ℕ) (cost : Finset α → ℕ)
+    (S : Finset α) (l : α) (hl : l ∈ S) :
+    cost S < cost (S.erase l) + k ↔
+      starGain q cost (S.erase l) + (q : ℤ) + 3 - k ≤ starGain q cost S := by
+  have hcard : (S.card : ℤ) = ((S.erase l).card : ℤ)+1 := by
+    have h := Finset.card_erase_of_mem hl
+    have hp := Finset.card_pos.mpr (show S.Nonempty from ⟨l,hl⟩)
+    omega
+  unfold starGain
+  rw [hcard]
+  push_cast
+  ring_nf
+  omega
+
 end Onlyfr.PrivateGeneralDrop
