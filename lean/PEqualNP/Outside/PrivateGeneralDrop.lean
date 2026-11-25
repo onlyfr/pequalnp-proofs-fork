@@ -78,7 +78,9 @@ theorem inputs_le_twice {m : ℕ} {gs : List Gate} (hc : MClean m gs) (H W : Fin
     | none => simp [ws,hg]
     | some g =>
       obtain ⟨a,b,_,_,hin,_⟩ := Free.vl_bin hc.1 hc.2 hg
-      simpa only [ws,hg,Option.map_some,Option.getD_some,hin] using (List.toFinset_card_le (l := [a,b]))
+      have hcount : ([a,b] : List ℕ).toFinset.card ≤ 2 := by
+        simpa using (List.toFinset_card_le (l := [a,b]))
+      simpa [ws,hg,hin] using hcount
   calc
     W.card ≤ (H.biUnion ws).card := Finset.card_le_card hsub
     _ ≤ ∑ d ∈ H, (ws d).card := Finset.card_biUnion_le
