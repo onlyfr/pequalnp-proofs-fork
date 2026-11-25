@@ -31,7 +31,15 @@ private theorem twins {n : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin 
       · exact hrl k (e ▸ hr)
       · exact hra k (e ▸ hr)) (by
       rw [vl_gate gs hc _ r g hg, vl_gate gs hc _ r g hg, hop]
-      rcases hin with h|h <;> simp [h,GateOp.eval,vl_input,pair_line])
+      rcases hin with h|h <;> rw [h] <;>
+        simp only [List.map_cons, List.map_nil, vl_input gs _ _ (Fin.natAdd n l).isLt,
+          vl_input gs _ _ (Fin.natAdd n a).isLt]
+      · change GateOp.or.eval [pairInput p l (Fin.natAdd n l), pairInput p l (Fin.natAdd n a)] =
+          GateOp.or.eval [pairInput p a (Fin.natAdd n l), pairInput p a (Fin.natAdd n a)]
+        simp only [pair_line]; simp [GateOp.eval]
+      · change GateOp.or.eval [pairInput p l (Fin.natAdd n a), pairInput p l (Fin.natAdd n l)] =
+          GateOp.or.eval [pairInput p a (Fin.natAdd n a), pairInput p a (Fin.natAdd n l)]
+        simp only [pair_line]; simp [GateOp.eval])
   rw [hev,hev] at hh
   exact hpa (((pair_edge_iff I S p a).mp (hh ▸ (pair_edge_iff I S p l).mpr ⟨hl,hpl⟩)).2)
 
@@ -62,6 +70,7 @@ theorem peel {n : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin n))
     apply h
     rw [← hL.2.2.1,← hL.2.2.1,he,vl_input gs _ _ (Fin.natAdd n a).isLt,
       vl_input gs _ _ (Fin.natAdd n a).isLt]
+    change Function.update x (Fin.natAdd n a) false (Fin.natAdd n a) = Function.update y (Fin.natAdd n a) false (Fin.natAdd n a)
     simp
   let P := fun k => ∃ a ∈ S, Reads gs k (Fin.natAdd n a)
   have someRead : ∃ k, P k := by
@@ -174,7 +183,7 @@ theorem distinct_lower {n : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin
     · have := Finset.not_nonempty_iff_eq_empty.mp pos
       simp [this]
 termination_by S.card
-decreasing_by have := Finset.card_erase_of_mem ha; omega
+decreasing_by exact Finset.card_erase_lt_of_mem ha
 
 /-- Select one representative of each support and charge the remaining
 essential inputs one gate each before applying the distinct-support bound. -/
@@ -214,6 +223,6 @@ theorem representative_lower {n : ℕ} (I : Fin n → Fin n → Prop) (S T : Fin
     have := Finset.card_erase_of_mem ha
     omega
 termination_by S.card
-decreasing_by have := Finset.card_erase_of_mem ha; omega
+decreasing_by exact Finset.card_erase_lt_of_mem ha
 
 end Onlyfr.PrivateDistinctSupports
