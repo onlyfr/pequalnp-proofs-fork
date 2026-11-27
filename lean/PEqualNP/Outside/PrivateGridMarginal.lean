@@ -59,4 +59,34 @@ theorem tight_path (D : ℕ → ℕ) (n : ℕ)
       have := prev.mpr (fun k hk => all k (by omega))
       have := all n (by omega)
       omega
+/-- After cutting a family of OR readers with common partner, the residual
+network is a context in the reader outputs and the other raw variables. -/
+theorem shared_partner_repair {G X : Type*}
+    (C : (G → Prop) → X → Prop) (T guard : X → Prop)
+    (fire : ∀ (p : G → Prop) x, T x → guard x → C (fun j => p j ∨ T x) x)
+    (cover : ∀ (p : G → Prop) x, C (fun j => p j ∨ T x) x → guard x)
+    (mono : ∀ (p q : G → Prop) x, (∀ j, p j → q j) → C p x → C q x) (p : G → Prop) (x : X) :
+    C (fun j => p j ∨ T x) x ↔ C p x ∨ (T x ∧ guard x) := by
+  constructor
+  · intro h
+    by_cases ht : T x
+    · exact Or.inr ⟨ht,cover p x h⟩
+    · exact Or.inl (by simpa [ht] using h)
+  · rintro (h|⟨ht,hg⟩)
+    · exact mono p _ x (fun _ hp => Or.inl hp) h
+    · exact fire p x ht hg
+
+/-- If active selectors cover the grouped crossing cases, saturating the
+group forces the incidence output exactly when at least one selector is on. -/
+theorem saturated_grid {G L : Type*} (touch : G → L → Prop) (y : L → Prop)
+    (covered : ∀ l, ∃ g, touch g l) (outside : Prop)
+    (hon : outside → ∃ l, y l) :
+    (outside ∨ ∃ g l, touch g l ∧ y l) ↔ ∃ l, y l := by
+  constructor
+  · rintro (h|⟨_,l,_,hy⟩)
+    · exact hon h
+    · exact ⟨l,hy⟩
+  · rintro ⟨l,hy⟩
+    obtain ⟨g,hg⟩ := covered l
+    exact Or.inr ⟨g,l,hg,hy⟩
 end Onlyfr.PrivateGridMarginal
