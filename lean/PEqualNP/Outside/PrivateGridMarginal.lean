@@ -89,4 +89,27 @@ theorem saturated_grid {G L : Type*} (touch : G → L → Prop) (y : L → Prop)
   · rintro ⟨l,hy⟩
     obtain ⟨g,hg⟩ := covered l
     exact Or.inr ⟨g,l,hg,hy⟩
+/-- For a prefix of dependency layers, its last layer contributes no
+crossing ancestors inside the prefix. The parameters bound the cut and repair sizes. -/
+theorem row_layer_bound {r w a : ℕ} (hr : r ≤ 1001) (hw : w ≤ r)
+    (anc : a ≤ 1001*(r-w)) (least : 1001*r ≤ 4004+r+a) :
+    w ≤ 5 ∧ (r < 1001 → w ≤ 4) := by omega
+
+theorem row_layer_depth {layers : ℕ} (capacity : 1001 ≤ 4*(layers-1)+5) :
+    250 ≤ layers := by omega
+
+/-- An upper approximation agrees when the common control is true. A
+sufficient accepting predicate for the remaining minimal witnesses repairs it. -/
+theorem common_control_repair (f upper control correction : Prop)
+    (le : f → upper) (agree : control → upper → f)
+    (sound : correction → f) (cover : f → ¬ control → correction) :
+    f ↔ (control ∧ upper) ∨ correction := by
+  constructor
+  · intro h
+    by_cases hc : control
+    · exact Or.inl ⟨hc,le h⟩
+    · exact Or.inr (cover h hc)
+  · rintro (⟨h,u⟩|h)
+    · exact agree h u
+    · exact sound h
 end Onlyfr.PrivateGridMarginal
