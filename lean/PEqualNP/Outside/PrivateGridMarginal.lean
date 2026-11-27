@@ -112,4 +112,59 @@ theorem common_control_repair (f upper control correction : Prop)
   · rintro (⟨h,u⟩|h)
     · exact agree h u
     · exact sound h
+/-- With the vertical infinity point suppressed, a negative input on which a
+whole row partner fires must have a separate point covering every column. -/
+theorem column_cover_card {P C : Type*} [Fintype C] (active : Finset P)
+    (cover : P → C → Prop) (all : ∀ c, ∃ p ∈ active, cover p c)
+    (unique : ∀ p ∈ active, ∀ c d, cover p c → cover p d → c = d) :
+    Fintype.card C ≤ active.card := by
+  classical
+  choose pick mem spec using all
+  let emb : C → ↥active := fun c => ⟨pick c,mem c⟩
+  have inj : Function.Injective emb := by
+    intro c d eq
+    have he : pick c = pick d := congrArg Subtype.val eq
+    exact unique _ (mem c) c d (spec c) (he.symm ▸ spec d)
+  simpa using Fintype.card_le_of_injective emb inj
+
+theorem one_sound_row {r : ℕ} (least : 1001*r ≤ 1002+r) : r ≤ 1 := by omega
+
+/-- Capacity of h layers of crossing inputs in the labelled dependency graph. -/
+theorem pair_layer_capacity (m : ℕ → ℕ) (base : m 0 = 0)
+    (step : ∀ h, m (h+1) ≤ 6006 + 2*m h) (h : ℕ) :
+    m h + 6006 ≤ 6006 * 2^h := by
+  induction h with
+  | zero => simp [base]
+  | succ h ih =>
+    rw [pow_succ]
+    have := step h
+    omega
+/-- If a line has no active points, toggling its selector cannot change f.
+If a partner hides restoration of an incident crossing even with that line on,
+truth of the partner on the dark restriction already certifies f. -/
+theorem dark_line_sound (f partner lineOnPartner lineOn restored : Prop)
+    (dark : lineOn ↔ f) (mono : partner → lineOnPartner)
+    (hidden : lineOnPartner → (restored ↔ lineOn)) (inc : restored) :
+    partner → f := fun hp => dark.mp ((hidden (mono hp)).mp inc)
+
+/-- Restore a column's affine bits and its infinity bit after an arbitrary
+circuit repair on the dark restriction. -/
+theorem restore_column {R C : Type*} (base hub : Prop) (v : C → Prop)
+    (c : C) (y x : R → Prop) (priv : Prop) :
+    (base ∨ (∃ j, hub ∧ v j) ∨ (priv ∧ v c) ∨
+      ∃ i, x i ∧ (v c ∨ y i)) ↔
+    base ∨ (hub ∧ ∃ j, v j) ∨ (v c ∧ (priv ∨ ∃ i, x i)) ∨ ∃ i, x i ∧ y i := by
+  constructor
+  · rintro (h|⟨j,hh,hj⟩|⟨hp,hc⟩|⟨i,hx,hc|hy⟩)
+    · exact Or.inl h
+    · exact Or.inr (Or.inl ⟨hh,j,hj⟩)
+    · exact Or.inr (Or.inr (Or.inl ⟨hc,Or.inl hp⟩))
+    · exact Or.inr (Or.inr (Or.inl ⟨hc,Or.inr ⟨i,hx⟩⟩))
+    · exact Or.inr (Or.inr (Or.inr ⟨i,hx,hy⟩))
+  · rintro (h|⟨hh,j,hj⟩|⟨hc,hp|⟨i,hx⟩⟩|⟨i,hx,hy⟩)
+    · exact Or.inl h
+    · exact Or.inr (Or.inl ⟨j,hh,hj⟩)
+    · exact Or.inr (Or.inr (Or.inl ⟨hp,hc⟩))
+    · exact Or.inr (Or.inr (Or.inr ⟨i,hx,Or.inl hc⟩))
+    · exact Or.inr (Or.inr (Or.inr ⟨i,hx,Or.inr hy⟩))
 end Onlyfr.PrivateGridMarginal
