@@ -136,4 +136,55 @@ theorem hdrop_of_budget {q : ℕ} (hs : 2 ≤ S.card) (hd : ∀ l ∈ S, (pts I 
   have pos := Finset.card_pos.mpr hn
   omega
 
+/-- With a private point on each row and no point on three rows, the row construction
+is optimal. This also applies to affine grids after fixing the two infinity bits off. -/
+theorem exact_rows_of_degree_two
+    (linear : ∀ p r a b, I p a → I r a → I p b → I r b → a ≠ b → p = r)
+    (hn : S.Nonempty) (privateRow : ∀ l ∈ S, {l} ∈ types I S)
+    (degree : ∀ p ∈ active I S, (sig I S p).card ≤ 2) :
+    let cost := (∑ l ∈ S, (pts I l).card) + S.card - 1
+    HasMonoSize (n+n) (edgeFun I S) cost ∧
+      ∀ t, HasMonoSize (n+n) (edgeFun I S) t → cost ≤ t := by
+  classical
+  have rows (l) (hl : l ∈ S) : (pts I l).Nonempty := by
+    obtain ⟨p, _, he⟩ := Finset.mem_image.mp (privateRow l hl)
+    have h : l ∈ sig I S p := by simp [he]
+    exact ⟨p,(mem_pts I p l).mp (Finset.mem_filter.mp h).2⟩
+  obtain ⟨a,ha⟩ := hn
+  obtain ⟨p,hp⟩ := rows a ha
+  have hA : (active I S).Nonempty := ⟨p,Finset.mem_biUnion.mpr ⟨a,ha,hp⟩⟩
+  have filt : S.filter (fun l => {l} ∈ types I S) = S :=
+    Finset.filter_eq_self.mpr privateRow
+  have zero := budget_eq I S linear
+  have terms (p) (hp : p ∈ active I S) : (sig I S p).card - 2 = 0 :=
+    Nat.sub_eq_zero_of_le (degree p hp)
+  have sumzero : (∑ p ∈ active I S, ((sig I S p).card - 2)) = 0 := Finset.sum_eq_zero terms
+  rw [sumzero,filt,Nat.sub_self,Nat.zero_add] at zero
+  constructor
+  · simpa using encoded_upper (pts I) S (Equiv.refl _) (Function.Embedding.refl _) I
+      (fun l _ p => mem_pts I p l) ⟨a,ha⟩ rows
+  · intro t ht
+    have lb := support_lower I S hA ht
+    unfold budget at zero
+    omega
+
+/-- A single row can have a different degree from the remaining rows, for example
+after suppressing just one infinity point of a rectangular grid. -/
+theorem deletion_gap (l : Fin n) (hl : l ∈ S) (hn : (S.erase l).Nonempty)
+    (rows : ∀ a ∈ S, (pts I a).Nonempty)
+    {t : ℕ} (hf : HasMonoSize (n+n) (edgeFun I S) t) :
+    ∃ u, HasMonoSize (n+n) (edgeFun I (S.erase l)) u ∧
+      u + (pts I l).card + 1 ≤ t + budget I S := by
+  classical
+  obtain ⟨p,hp⟩ := rows l hl
+  have lb := support_lower I S ⟨p,Finset.mem_biUnion.mpr ⟨l,hl,hp⟩⟩ hf
+  have ub := encoded_upper (pts I) (S.erase l) (Equiv.refl _) (Function.Embedding.refl _) I
+    (fun a _ p => mem_pts I p a) hn (fun a ha => rows a (Finset.mem_of_mem_erase ha))
+  refine ⟨_,by simpa using ub,?_⟩
+  have hc := Finset.card_erase_of_mem hl
+  have pos := Finset.card_pos.mpr hn
+  unfold budget
+  rw [← Finset.add_sum_erase S (fun a => (pts I a).card) hl]
+  omega
+
 end Onlyfr.PrivateConcurrency
