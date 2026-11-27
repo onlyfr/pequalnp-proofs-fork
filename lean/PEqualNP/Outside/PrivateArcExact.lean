@@ -32,7 +32,7 @@ variable (rows : ∀ l ∈ S, ∀ p, I (pt p) (ln l) ↔ p ∈ row l)
 
 include rows
 
-private theorem encoded_lower (T : Finset P) (sub : T ⊆ S.biUnion row)
+theorem encoded_lower (T : Finset P) (sub : T ⊆ S.biUnion row)
     (hne : T.Nonempty)
     (diff : ∀ p ∈ T, ∀ q ∈ T, p ≠ q → ∃ l ∈ S, ¬ (p ∈ row l ↔ q ∈ row l))
     {t : ℕ} (hf : HasMonoSize (n+n) (edgeFun I (S.map ln)) t) :
@@ -73,7 +73,7 @@ private theorem encoded_lower (T : Finset P) (sub : T ⊆ S.biUnion row)
         exact Or.inr ⟨ln l,⟨mem,(rows l hl q).mpr hq'⟩,fun H => h ((rows l hl p).mp H.2)⟩) ht
   simpa only [A,Finset.card_map] using h
 
-private theorem encoded_upper (hn : S.Nonempty) (nonempty : ∀ l ∈ S, (row l).Nonempty) :
+theorem encoded_upper (hn : S.Nonempty) (nonempty : ∀ l ∈ S, (row l).Nonempty) :
     HasMonoSize (n+n) (edgeFun I (S.map ln)) ((∑ l ∈ S, (row l).card) + S.card - 1) := by
   classical
   let entries := S.sigma row
