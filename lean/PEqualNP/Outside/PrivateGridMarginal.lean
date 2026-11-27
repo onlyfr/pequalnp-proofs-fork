@@ -1,4 +1,6 @@
 import PEqualNP.Outside.PrivateReaderDrop
+import Mathlib.Combinatorics.Hall.Finite
+import Mathlib.Data.Finset.Sum
 
 namespace Onlyfr.PrivateGridMarginal
 open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity
@@ -167,4 +169,74 @@ theorem restore_column {R C : Type*} (base hub : Prop) (v : C → Prop)
     · exact Or.inr (Or.inr (Or.inl ⟨hp,hc⟩))
     · exact Or.inr (Or.inr (Or.inr ⟨i,hx,Or.inl hc⟩))
     · exact Or.inr (Or.inr (Or.inr ⟨i,hx,Or.inr hy⟩))
+/-- A join that is already true when the partner fires can mask the reader.
+C represents every intervening use up to that join. -/
+theorem masked_join (x t : Prop) (C : Prop → Prop)
+    (override : t → ∀ z, C z) : C (x ∨ t) ↔ C x := by
+  by_cases ht : t
+  · exact ⟨fun _ => override ht _, fun _ => override ht _⟩
+  · simp [ht]
+
+theorem prefix_step (t x l : Prop) :
+    t ∨ ((x ∨ t) ∧ l) ↔ t ∨ (x ∧ l) := by
+  constructor
+  · rintro (h|⟨h|h,hl⟩)
+    · exact Or.inl h
+    · exact Or.inr ⟨h,hl⟩
+    · exact Or.inl h
+  · rintro (h|⟨hx,hl⟩)
+    · exact Or.inl h
+    · exact Or.inr ⟨Or.inl hx,hl⟩
+
+/-- In the constructed grid circuit, both hubs on accept any selected line.
+This makes the masked prefix a correct computation when the guard is applied. -/
+theorem prefix_output (base edges mask selected : Prop)
+    (active : edges → selected) (hub : mask → selected → base) :
+    base ∨ ((mask ∨ edges) ∧ selected) ↔ base ∨ edges := by
+  constructor
+  · rintro (h|⟨h|h,hs⟩)
+    · exact Or.inl h
+    · exact Or.inl (hub h hs)
+    · exact Or.inr h
+  · rintro (h|h)
+    · exact Or.inl h
+    · exact Or.inr ⟨Or.inr h,active h⟩
+/-- An additive deficit for every cut gives distinct witnesses, except for at
+most d readers that are assigned distinct dummy labels. -/
+theorem distinct_pair_assignment {I P : Type*} [Finite I] [DecidableEq P]
+    (W : I → Finset P) (d : ℕ)
+    (cut : ∀ s : Finset I, s.card ≤ (s.biUnion W).card + d) :
+    ∃ f : I → P ⊕ Fin d, Function.Injective f ∧
+      ∀ i, f i ∈ (W i).disjSum Finset.univ := by
+  classical
+  apply (Finset.all_card_le_biUnion_card_iff_existsInjective' _).mp
+  intro s
+  by_cases hs : s.Nonempty
+  · have eq : (s.biUnion (fun i => (W i).disjSum (Finset.univ : Finset (Fin d)))) =
+        (s.biUnion W).disjSum Finset.univ := by
+      ext v
+      cases v with
+      | inl p => simp
+      | inr j => simpa using (show (∃ i, i ∈ s) ↔ True from ⟨fun _ => trivial, fun _ => hs⟩)
+    rw [eq,Finset.card_disjSum,Finset.card_univ,Fintype.card_fin]
+    exact cut s
+  · simp [Finset.not_nonempty_iff_eq_empty.mp hs]
+/-- A monotone under-approximation to an edge predicate can be repaired by
+adding precisely the edges on which its minimal true input is rejected. -/
+theorem repair_lost_pairs {P L : Type*} (I : P → L → Prop)
+    (residual : (P → Prop) → (L → Prop) → Prop)
+    (mono : ∀ (a b : P → Prop) (c d : L → Prop), (∀ p, a p → b p) → (∀ l, c l → d l) →
+      residual a c → residual b d)
+    (sound : ∀ a b, residual a b → ∃ p l, I p l ∧ a p ∧ b l)
+    (a : P → Prop) (b : L → Prop) :
+    (∃ p l, I p l ∧ a p ∧ b l) ↔ residual a b ∨
+      ∃ p l, I p l ∧ a p ∧ b l ∧ ¬ residual (fun u => u = p) (fun v => v = l) := by
+  constructor
+  · rintro ⟨p,l,h,ha,hb⟩
+    by_cases hit : residual (fun u => u = p) (fun v => v = l)
+    · exact Or.inl (mono (fun u => u = p) a (fun v => v = l) b (fun _ e => e.symm ▸ ha) (fun _ e => e.symm ▸ hb) hit)
+    · exact Or.inr ⟨p,l,h,ha,hb,hit⟩
+  · rintro (h|⟨p,l,hi,ha,hb,_⟩)
+    · exact sound a b h
+    · exact ⟨p,l,hi,ha,hb⟩
 end Onlyfr.PrivateGridMarginal
