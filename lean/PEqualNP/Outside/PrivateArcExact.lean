@@ -17,9 +17,10 @@ private theorem relabel_mono {n m s : ℕ} (π : Fin n → Fin m) {f}
     exact ⟨(ok _ hg₀).1, by simpa [relGate] using (ok _ hg₀).2⟩
   · intro g hg
     obtain ⟨g₀,hg₀,rfl⟩ := List.mem_map.mp hg
-    exact nf _ hg₀
+    exact nf g₀ hg₀
   · simpa [relabel,Circuit.size] using sz
   · intro x
+    change _ = f (x ∘ π)
     rw [← ev (x ∘ π)]
     exact (rel_fold n m π C.gates _ _ (rel_init n m π x)).2.2 C.output
 
@@ -28,6 +29,8 @@ variable {P L : Type*} [DecidableEq P] [DecidableEq L]
 variable {n : ℕ} (row : L → Finset P) (S : Finset L)
 variable (pt : P ≃ Fin n) (ln : L ↪ Fin n) (I : Fin n → Fin n → Prop)
 variable (rows : ∀ l ∈ S, ∀ p, I (pt p) (ln l) ↔ p ∈ row l)
+
+include rows
 
 private theorem encoded_lower (T : Finset P) (sub : T ⊆ S.biUnion row)
     (hne : T.Nonempty)
@@ -54,7 +57,7 @@ private theorem encoded_lower (T : Finset P) (sub : T ⊆ S.biUnion row)
   have ht := relabel_mono swap hf
   rw [eqf] at ht
   have h := representative_lower J A (T.map pt.toEmbedding) (Finset.map_subset_map.mpr sub)
-    (hne.map _) (by
+    hne.map (by
       intro u hu
       obtain ⟨p,hp,rfl⟩ := Finset.mem_map.mp hu
       obtain ⟨l,hl,hi⟩ := Finset.mem_biUnion.mp hp
@@ -97,7 +100,9 @@ private theorem encoded_upper (hn : S.Nonempty) (nonempty : ∀ l ∈ S, (row l)
   obtain ⟨hok,hnf⟩ := CoverCircuit.fanInTwo_notFree (n+n) edges cover
   refine ⟨_,hok,hnf,?_,?_⟩
   · have hs := CoverCircuit.size_le (n+n) edges cover ne
-    simp only [edges,cover,List.length_map,Finset.length_toList,entries,Finset.card_sigma] at hs
+    have elen : edges.length = ∑ l ∈ S, (row l).card := by simp [edges,entries,Finset.card_sigma]
+    have clen : cover.length = S.card := by simp [cover]
+    rw [elen,clen] at hs
     omega
   · intro x
     change circuitFun _ _ x = _
@@ -124,6 +129,8 @@ variable {K : Type*} [Field K] [Fintype K] [DecidableEq K]
 variable {n : ℕ} (S : Finset (Option K)) (pt : ((K × K) ⊕ Option K) ≃ Fin n)
 variable (ln : Option K ↪ Fin n) (I : Fin n → Fin n → Prop)
 variable (rows : ∀ l ∈ S, ∀ p, I (pt p) (ln l) ↔ arcInc l p)
+
+include rows
 
 /-- Exact threshold on the actual two-block incidence inputs, allowing arbitrary
 numberings of points and lines and arbitrary incidences outside the active rows. -/
@@ -237,6 +244,36 @@ theorem deletion_1009 (hK : Fintype.card K = 1009) {l : Option K} (hl : l ∈ S)
   refine ⟨_,(arc_size_iff (S.erase l) pt ln I (fun a ha => rows a (Finset.mem_of_mem_erase ha)) hn _).mpr (le_refl _),?_⟩
   rw [hK] at lb ⊢
   omega
+
+/-- The circuit witness and the inequality in the original deletion premise. -/
+theorem arc_hdrop_1009 (hK : Fintype.card K = 1009) {l : Option K} (hl : l ∈ S)
+    (hs : 2 ≤ S.card) (D : Circuit) (hm : Monotone2 D)
+    (hex : ∀ x, circuitFun (n+n) D x = true ↔ ∃ p a, a ∈ S.map ln ∧ I p a ∧
+      x (Fin.castAdd n p) = true ∧ x (Fin.natAdd n a) = true) :
+    ∃ E : Circuit, Monotone2 E ∧
+      (∀ x, circuitFun (n+n) E x = edgeFun I ((S.map ln).erase (ln l)) x) ∧
+      100 * E.size + 1009 ≤ 100 * D.size := by
+  obtain ⟨u,hu,hsave⟩ := deletion_1009 S pt ln I rows hK hl hs
+    (mono_size_of_exact I (S.map ln) D hm hex)
+  obtain ⟨E,hE,hsize,heval⟩ := monotone2_of_has hu
+  exact ⟨E,hE,by simpa only [Finset.map_erase] using heval,by omega⟩
+
+omit rows in
+/-- The two numerical thresholds on the same numbered inputs. -/
+theorem full_and_erased_1009 (hK : Fintype.card K = 1009)
+    (allRows : ∀ l p, I (pt p) (ln l) ↔ arcInc l p) (l : Option K) (t : ℕ) :
+    (HasMonoSize (n+n) (edgeFun I (Finset.univ.map ln)) t ↔ 1021109 ≤ t) ∧
+    (HasMonoSize (n+n) (edgeFun I ((Finset.univ.erase l).map ln)) t ↔ 1020098 ≤ t) := by
+  have hcard : (Finset.univ : Finset (Option K)).card = 1010 := by simp [hK]
+  have hmem : l ∈ (Finset.univ : Finset (Option K)) := Finset.mem_univ _
+  have he := Finset.card_erase_of_mem hmem
+  rw [hcard] at he
+  have hne : (Finset.univ.erase l).Nonempty := Finset.card_pos.mp (by omega)
+  constructor
+  · simpa only [hK,hcard] using
+      arc_size_iff Finset.univ pt ln I (fun a _ => allRows a) ⟨l,hmem⟩ t
+  · simpa only [hK,he] using
+      arc_size_iff (Finset.univ.erase l) pt ln I (fun a _ => allRows a) hne t
 
 end Arc
 end Onlyfr.PrivateArcExact
