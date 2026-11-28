@@ -125,13 +125,14 @@ private theorem partition_core {J : Type*} (X : Finset J) (G : Finset ℕ) (r t 
   change _ ∧ X.card ≤ U.card+B.card
   omega
 
-theorem gate_partition {gs : List Gate} {o : ℕ} (least : MLeast (N+N) (edgeFun inc lines) gs o)
+theorem explicit_partition {gs : List Gate} {o : ℕ} (least : MLeast (N+N) (edgeFun inc lines) gs o)
     (r t f : Crossing → ℕ) (fi : Function.Injective f)
     (rd : ∀ i, OrRd gs (r i) (Fin.castAdd N (cross i)) (t i))
     (sole : ∀ i k, Reads gs k (Fin.castAdd N (cross i)) → k=r i)
     (use : ∀ i, Reads gs (f i) (N+N+r i)) :
-    ∃ B, 1001^2+(Finset.univ.image t).card+B = gs.length ∧
-      1001^2 ≤ (Finset.univ.filter (fun i => N+N+f i ∈ Finset.univ.image t)).card+B := by
+    let B := ((Finset.range gs.length).image (fun k => N+N+k)) \ ((Finset.univ.image (fun i => N+N+r i)) ∪ Finset.univ.image t)
+    1001^2+(Finset.univ.image t).card+B.card = gs.length ∧
+      1001^2 ≤ (Finset.univ.filter (fun i => N+N+f i ∈ Finset.univ.image t)).card+B.card := by
   classical
   let X : Finset Crossing := Finset.univ
   have nx : X.card=1001^2 := by simp [X,Crossing,Axis,pow_two]
@@ -168,7 +169,16 @@ theorem gate_partition {gs : List Gate} {o : ℕ} (least : MLeast (N+N) (edgeFun
   have ng : G.card = gs.length := (Finset.card_image_of_injective _ wi).trans (Finset.card_range _)
   change X.card+T.card+B.card=G.card ∧ X.card ≤ (X.filter (fun i => wire (f i) ∈ T)).card+B.card at counts
   rw [nx,ng] at counts
-  exact ⟨B.card,counts⟩
+  exact counts
+
+theorem gate_partition {gs : List Gate} {o : ℕ} (least : MLeast (N+N) (edgeFun inc lines) gs o)
+    (r t f : Crossing → ℕ) (fi : Function.Injective f)
+    (rd : ∀ i, OrRd gs (r i) (Fin.castAdd N (cross i)) (t i))
+    (sole : ∀ i k, Reads gs k (Fin.castAdd N (cross i)) → k=r i)
+    (use : ∀ i, Reads gs (f i) (N+N+r i)) :
+    ∃ B, 1001^2+(Finset.univ.image t).card+B = gs.length ∧
+      1001^2 ≤ (Finset.univ.filter (fun i => N+N+f i ∈ Finset.univ.image t)).card+B := by
+  exact ⟨_,explicit_partition least r t f fi rd sole use⟩
 
 /-- Each of the two endpoint tests is charged to a genuine first changed
 consumer. Its other operand keeps its old selector-singleton value. -/

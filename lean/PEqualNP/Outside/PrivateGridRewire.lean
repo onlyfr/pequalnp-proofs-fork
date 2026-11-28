@@ -281,7 +281,7 @@ theorem cut_and_fold (hc : MClean m gs) (ho : o < m+gs.length)
       exact Bool.noConfusion ((zero _ hz x hx).symm.trans on))
   exact ⟨cs,v,hc',hv,by omega,agree⟩
 
-private theorem wire_mono (hc : MClean m gs) (x y : Fin m → Bool)
+theorem wire_mono (hc : MClean m gs) (x y : Fin m → Bool)
     (le : ∀ i, x i = true → y i = true) (w : ℕ) (hw : w < m+gs.length) :
     vl gs x w = true → vl gs y w = true := by
   induction w using Nat.strong_induction_on with

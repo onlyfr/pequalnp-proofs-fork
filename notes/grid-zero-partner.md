@@ -1,6 +1,6 @@
 # Order 1009: the 1001 by 1001 grid saves at least eleven gates
 
-This is a paper proof for the specific two-pencil grid, with both infinity bits free. The final finite-set accounting and arithmetic contradiction are Lean checked. The repository does not yet contain an end-to-end Lean theorem instantiating the circuit transformations for this grid.
+The Lean theorem `PrivateGrid1009.minimum_deletion_eleven` proves the minimum-size gap for every horizontal and vertical deletion in the active two-pencil grid. The two infinity inputs are free. The geometric model has 1,001 lines per pencil and eight private affine points on each line.
 
 ## Lean status for the uncompressed grid
 
@@ -8,7 +8,9 @@ This is a paper proof for the specific two-pencil grid, with both infinity bits 
 
 `PrivateGrid1009.cuts_of_ten` uses that same matching for every subset of rows or columns. For a cut of size d the explicit restoration costs at most 2011d+1001 gates. Folding the 1001d matched consumers gives the allowance 1010d+1001. The set of readers with a touched partner and the extra matched-partner credits are computed from the actual circuit. `PrivateGrid1009.incompatible_counts` connects both cut inequalities to averaging over all subsets.
 
-`PrivateGrid1009.first_probes` constructs both first changed consumers. `PrivateGrid1009.gate_partition` counts the readers, distinct partners and remaining gates in the same circuit. The end-to-end conditional theorem `PrivateGrid1009.eleven_of_probe_bound` has one outstanding circuit-counting hypothesis: if M=1001², K is the number of distinct partners and B is the number of other gates after excluding readers and partners, then 2M ≤ K+8B. The theorem uses the verified erased upper bound 2,023,012. An unconditional eleven-gate theorem still requires the probe-charge estimate for actual circuits. The grid input indexing here represents the active incidence geometry; it does not include an embedding into the project's full projective-plane indexing.
+`PrivateGrid1009.first_probes` constructs the two first changed consumers per crossing. If both consumers are the same partner AND, its other operand accepts exactly that crossing's horizontal and vertical singleton selectors. Different crossings need different such operands. An operand accepting both selectors cannot be a raw input, and no reader or partner accepts a selector singleton. Thus the number of double hits is at most B, the number of remaining gates.
+
+`PrivateGrid1009.probe_accounting` gives 2M ≤ K+5B for the actual circuit. After setting aside the second probe of every double hit, each partner takes at most one remaining probe. An outside consumer takes at most four, indexed by input port and probe side. This discharges the K+8B premise in `eleven_of_probe_bound`. The result applies to the active grid incidence function. An embedding into the full projective-plane indexing and a theorem for arbitrary configurations are separate questions.
 
 ## Setup and previously established inputs
 

@@ -10,7 +10,7 @@ open PEqualNP.MetaComplexity.Helpers.Readers PEqualNP.MetaComplexity.Loc
 def operand (gs : List Gate) (k : ℕ) (b : Bool) : Option ℕ :=
   gs[k]?.bind fun g => g.inputs[if b then 1 else 0]?
 
-private theorem port_of_reads {m k w : ℕ} {gs : List Gate} (hc : MClean m gs)
+theorem port_of_reads {m k w : ℕ} {gs : List Gate} (hc : MClean m gs)
     (h : Reads gs k w) : ∃ b, operand gs k b = some w := by
   obtain ⟨g,hg,hw⟩ := h
   rcases hc.1 k g hg with ⟨_,a,_,ha⟩ | ⟨_,a,b,_,_,hab⟩
