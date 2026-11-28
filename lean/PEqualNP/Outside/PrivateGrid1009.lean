@@ -10,8 +10,9 @@ abbrev Crossing := Axis × Axis
 /-- Active point inputs: all affine crossings, eight private affine points
 per line, and two independent points at infinity. -/
 abbrev Point := Crossing ⊕ ((Bool × Axis × Fin 8) ⊕ Bool)
-abbrev N := Fintype.card Point
-noncomputable def idx := Fintype.equivFin Point
+abbrev N := 1018019
+noncomputable def idx : Point ≃ Fin N := Fintype.equivFinOfCardEq (by
+  simp [Point,Crossing,Axis,N])
 noncomputable def cross (i : Crossing) : Fin N := idx (.inl i)
 noncomputable def priv (v : Bool) (a : Axis) (k : Fin 8) : Fin N := idx (.inr (.inl (v,a,k)))
 noncomputable def hub (v : Bool) : Fin N := idx (.inr (.inr v))
@@ -108,5 +109,82 @@ theorem matched_under_ten {gs : List Gate} {o : ℕ} (ho : o < gs.length)
         (∀ k, Reads gs k (Fin.castAdd N (cross i)) → k=r i) ∧ Reads gs (f i) (N+N+r i) :=
   ten_matching (J := Crossing) (n := N) (gs := gs) inc lines (fun i => line false i.1) cross o (fun i => e i.1)
     ho least sep (fun i => ten i.1) (fun i => emin i.1) eight twin
+
+private def move (σ : Equiv.Perm Axis) : Point → Point
+  | .inl (r,c) => .inl (σ r,c)
+  | .inr (.inl (false,r,k)) => .inr (.inl (false,σ r,k))
+  | .inr (.inl (true,c,k)) => .inr (.inl (true,c,k))
+  | .inr (.inr v) => .inr (.inr v)
+
+private noncomputable def mapIdx (σ : Equiv.Perm Axis) (i : Fin N) := idx (move σ (idx.symm i))
+
+private theorem map_line (σ : Equiv.Perm Axis) (v : Bool) (a : Axis) :
+    mapIdx σ (line v a) = line v (if v then a else σ a) := by
+  cases v <;> simp [mapIdx,line,priv,move]
+
+private theorem map_invert (σ : Equiv.Perm Axis) (i : Fin N) : mapIdx σ.symm (mapIdx σ i) = i := by
+  obtain ⟨q,rfl⟩ := idx.surjective i
+  rcases q with ⟨r,c⟩|⟨⟨v,a,k⟩|v⟩
+  · simp [mapIdx,move]
+  · cases v <;> simp [mapIdx,move]
+  · simp [mapIdx,move]
+
+private theorem map_inc (σ : Equiv.Perm Axis) {p l : Fin N} (hl : l ∈ lines) :
+    inc (mapIdx σ p) (mapIdx σ l) ↔ inc p l := by
+  obtain ⟨v,a,rfl⟩ := active_form hl
+  obtain ⟨q,rfl⟩ := idx.surjective p
+  rw [map_line]
+  rcases q with ⟨r,c⟩|⟨⟨d,b,k⟩|d⟩
+  · cases v <;> simp [mapIdx,move,onLine]
+  · cases v <;> cases d <;> simp [mapIdx,move,onLine]
+  · cases v <;> simp [mapIdx,move,onLine]
+
+private theorem map_active (σ : Equiv.Perm Axis) (a : Axis) {l : Fin N}
+    (hl : l ∈ lines.erase (line false a)) : mapIdx σ l ∈ lines.erase (line false (σ a)) := by
+  obtain ⟨v,c,rfl⟩ := active_form (Finset.mem_of_mem_erase hl)
+  rw [map_line]
+  refine Finset.mem_erase.mpr ⟨?_,line_mem ..⟩
+  cases v with
+  | true => simp [line,priv]
+  | false =>
+    have ne : c ≠ a := fun e => Finset.ne_of_mem_erase hl (e ▸ rfl)
+    simpa [line,priv] using ne
+
+/-- A permutation of the horizontal lines relabels inputs at zero gate cost. -/
+theorem erased_size_perm (σ : Equiv.Perm Axis) (a : Axis) (s : ℕ)
+    (h : HasMonoSize (N+N) (edgeFun inc (lines.erase (line false a))) s) :
+    HasMonoSize (N+N) (edgeFun inc (lines.erase (line false (σ a)))) s := by
+  let π : Fin (N+N) → Fin (N+N) := Fin.addCases (fun p => Fin.castAdd N (mapIdx σ p))
+    (fun l => Fin.natAdd N (mapIdx σ l))
+  have run := Clean.relabel_mono π _ s h
+  convert run using 1
+  funext x
+  apply Bool.eq_iff_iff.mpr
+  rw [edgeFun_true,edgeFun_true]
+  have atP (p) : (x ∘ π) (Fin.castAdd N p) = x (Fin.castAdd N (mapIdx σ p)) := by simp [π]
+  have atL (l) : (x ∘ π) (Fin.natAdd N l) = x (Fin.natAdd N (mapIdx σ l)) := by simp only [Function.comp_apply,π,Fin.addCases_right]
+  constructor
+  · rintro ⟨p,l,hl,incid,hp,hs⟩
+    have active := map_active σ.symm (σ a) hl
+    rw [Equiv.symm_apply_apply] at active
+    refine ⟨mapIdx σ.symm p,mapIdx σ.symm l,active,
+      (map_inc σ.symm (Finset.mem_of_mem_erase hl)).mpr incid,?_,?_⟩
+    · simpa only [atP,show ∀ z, mapIdx σ (mapIdx σ.symm z) = z from map_invert σ.symm] using hp
+    · simpa only [atL,show ∀ z, mapIdx σ (mapIdx σ.symm z) = z from map_invert σ.symm] using hs
+  · rintro ⟨p,l,hl,incid,hp,hs⟩
+    exact ⟨_,_,map_active σ a hl,(map_inc σ (Finset.mem_of_mem_erase hl)).mpr incid,
+      (atP p).symm.trans hp,(atL l).symm.trans hs⟩
+
+/-- Exact ten on one specified horizontal line suffices for the simultaneous
+matching theorem; no assumptions on the other row minima are needed. -/
+theorem matched_one_row {gs : List Gate} {o e : ℕ} (a : Axis) (ho : o < gs.length)
+    (least : MLeast (N+N) (edgeFun inc lines) gs (N+N+o)) (ten : gs.length ≤ e+10)
+    (emin : ∀ s, HasMonoSize (N+N) (edgeFun inc (lines.erase (line false a))) s → e ≤ s) :
+    ∃ r t f : Crossing → ℕ, Function.Injective f ∧
+      ∀ i, OrRd gs (r i) (Fin.castAdd N (cross i)) (t i) ∧
+        (∀ k, Reads gs k (Fin.castAdd N (cross i)) → k=r i) ∧ Reads gs (f i) (N+N+r i) := by
+  apply matched_under_ten ho least (fun _ => e) (fun _ => ten)
+  intro b s hb
+  exact emin s (by simpa only [Equiv.swap_apply_left] using erased_size_perm (Equiv.swap b a) b s hb)
 
 end Onlyfr.PrivateGrid1009

@@ -177,6 +177,47 @@ theorem incidence_test {J : Type*} {n : ℕ} {gs : List Gate}
       contradiction
     rw [dark,Bool.eq_false_iff.mpr no]; rfl
 
+theorem incidence_reader_inj {J : Type*} {n : ℕ} {gs : List Gate}
+    (I : Fin n → Fin n → Prop) (S : Finset (Fin n))
+    (p : J → Fin n) (r t : J → ℕ) (o : ℕ)
+    (hc : MClean (n+n) gs) (ev : Computes (n+n) gs o (edgeFun I S))
+    (rd : ∀ i, OrRd gs (r i) (Fin.castAdd n (p i)) (t i))
+    (sole : ∀ i k, Reads gs k (Fin.castAdd n (p i)) → k=r i)
+    (sep : ∀ i j, i ≠ j → ∃ l ∈ S, I (p i) l ∧ ¬ I (p j) l) :
+    Function.Injective r := by
+  intro i j eq
+  by_contra ne
+
+  obtain ⟨l,hl,hi,miss⟩ := sep i j ne
+  have diff : p i ≠ p j := fun e => miss (e ▸ hi)
+  have rj : Reads gs (r i) (Fin.castAdd n (p j)) := by
+    rw [eq]
+    obtain ⟨g,hg,_,a|a⟩ := rd j <;> exact ⟨g,hg,by simp [a]⟩
+  obtain ⟨g,hg,op,a⟩ := rd i
+  have mem := rj.choose_spec
+  have eg := Option.some.inj (mem.1.symm.trans hg)
+  have hmem : (Fin.castAdd n (p j) : ℕ) ∈ g.inputs := eg ▸ mem.2
+  have neq : (Fin.castAdd n (p j) : ℕ) ≠ (Fin.castAdd n (p i) : ℕ) :=
+    fun e => diff (Fin.ext e.symm)
+  have same : (Fin.castAdd n (p j) : ℕ) = t i := by
+    rcases a with a|a <;> simp only [a,List.mem_cons,List.not_mem_nil,or_false] at hmem
+    · exact hmem.resolve_left neq
+    · exact hmem.resolve_right neq
+  let z := pairInput (p j) l
+  have dark (q) (hq : I q l) : z (Fin.castAdd n q) = false := by
+    have nq : q ≠ p j := fun e => miss (e ▸ hq)
+    simp [z,pair_point,nq]
+  have fire : vl gs z (t i) = true := by
+    rw [←same,vl_input _ _ _ (Fin.castAdd n (p j)).isLt]
+    change pairInput (p j) l (Fin.castAdd n (p j)) = true
+    rw [pair_point]; simp
+  have pos := dark_partner_sound I S (p i) l hl hi hc ev (rd i) (sole i) z dark fire
+  rw [ev] at pos
+  obtain ⟨q,v,_,inc,hq,hv⟩ := (edgeFun_true ..).mp pos
+  have qeq : q=p j := by simpa [z,pair_point] using hq
+  have veq : v=l := by simpa only [z,pair_line,decide_eq_true_eq] using hv
+  exact miss (qeq ▸ veq ▸ inc)
+
 /-- Distinguishable active points with unique OR readers admit a single
 matching to direct consumers, simultaneously for all row and column cuts. -/
 theorem incidence_matching {J : Type*} [Finite J] [Nontrivial J] {n : ℕ} {gs : List Gate}
@@ -192,42 +233,7 @@ theorem incidence_matching {J : Type*} [Finite J] [Nontrivial J] {n : ℕ} {gs :
     obtain ⟨h,hh,hj,_⟩ := sep j i ne.symm
     exact incidence_test I S p r t o ho hc ev rd sole i j l h hl hi miss hh hj b
   apply match_of_tests hc (fun i => Fin.castAdd n (p i)) r _ sole _ test
-  · intro i j eq
-    by_contra ne
-
-    obtain ⟨l,hl,hi,miss⟩ := sep i j ne
-    have diff : p i ≠ p j := fun e => miss (e ▸ hi)
-    -- If the readers coincide, exchanging the two raw bits at their
-    -- common OR leaves the circuit unchanged.
-    have ri : Reads gs (r i) (Fin.castAdd n (p i)) := by
-      obtain ⟨g,hg,_,a|a⟩ := rd i <;> exact ⟨g,hg,by simp [a]⟩
-    have rj : Reads gs (r i) (Fin.castAdd n (p j)) := by
-      rw [eq]
-      obtain ⟨g,hg,_,a|a⟩ := rd j <;> exact ⟨g,hg,by simp [a]⟩
-    obtain ⟨g,hg,op,a⟩ := rd i
-    have mem := rj.choose_spec
-    have eg := Option.some.inj (mem.1.symm.trans hg)
-    have hmem : (Fin.castAdd n (p j) : ℕ) ∈ g.inputs := eg ▸ mem.2
-    have neq : (Fin.castAdd n (p j) : ℕ) ≠ (Fin.castAdd n (p i) : ℕ) :=
-      fun e => diff (Fin.ext e.symm)
-    have same : (Fin.castAdd n (p j) : ℕ) = t i := by
-      rcases a with a|a <;> simp only [a,List.mem_cons,List.not_mem_nil,or_false] at hmem
-      · exact hmem.resolve_left neq
-      · exact hmem.resolve_right neq
-    let z := pairInput (p j) l
-    have dark (q) (hq : I q l) : z (Fin.castAdd n q) = false := by
-      have nq : q ≠ p j := fun e => miss (e ▸ hq)
-      simp [z,pair_point,nq]
-    have fire : vl gs z (t i) = true := by
-      rw [←same,vl_input _ _ _ (Fin.castAdd n (p j)).isLt]
-      change pairInput (p j) l (Fin.castAdd n (p j)) = true
-      rw [pair_point]; simp
-    have pos := dark_partner_sound I S (p i) l hl hi hc ev (rd i) (sole i) z dark fire
-    rw [ev] at pos
-    obtain ⟨q,v,_,inc,hq,hv⟩ := (edgeFun_true ..).mp pos
-    have qeq : q=p j := by simpa [z,pair_point] using hq
-    have veq : v=l := by simpa only [z,pair_line,decide_eq_true_eq] using hv
-    exact miss (qeq ▸ veq ▸ inc)
+  · exact incidence_reader_inj I S p r t _ hc ev rd sole sep
   · intro i
     obtain ⟨j,ne⟩ := exists_ne i
     obtain ⟨x,y,h,_⟩ := test i j ne.symm false
@@ -493,5 +499,169 @@ theorem cut_budget {m o : ℕ} {gs : List Gate} (hc : MClean m gs) (ho : o < m+g
     intro i hi j hj e
     exact inj (Finset.mem_filter.mp hi).1 (Finset.mem_filter.mp hj).1 (Nat.add_left_cancel e))
   simpa only [count] using credit
+
+/-- Any direct consumer of a crossing reader is outside the set of crossing
+readers. If its output is itself a partner, its operation must be AND. -/
+theorem consumer_class {J : Type*} {n : ℕ} {gs : List Gate} {o : ℕ}
+    (I : Fin n → Fin n → Prop) (S : Finset (Fin n)) (p : J → Fin n) (r t : J → ℕ)
+    (hc : MClean (n+n) gs) (ev : Computes (n+n) gs o (edgeFun I S))
+    (rd : ∀ i, OrRd gs (r i) (Fin.castAdd n (p i)) (t i))
+    (sole : ∀ i k, Reads gs k (Fin.castAdd n (p i)) → k=r i)
+    (sep : ∀ i j, i ≠ j → ∃ l ∈ S, I (p i) l ∧ ¬ I (p j) l)
+    (i : J) (k : ℕ) (use : Reads gs k (n+n+r i)) :
+    (∀ j, k ≠ r j) ∧ (∀ j, n+n+k = t j → ∃ g, gs[k]? = some g ∧ g.op = .and) := by
+  let raw := Fin.castAdd n (p i)
+  let x (z : Fin (n+n)) := decide (z=raw)
+  have input : vl gs x raw.val = true := by
+    rw [vl_input _ _ _ raw.isLt]
+    exact decide_eq_true rfl
+  have live : vl gs x (n+n+r i) = true := by
+    rw [orrd_eval hc.1 (rd i)]
+    exact Bool.or_eq_true_iff.mpr (Or.inl input)
+  have reject (j : J) (ne : j ≠ i) : vl gs x (t j) ≠ true := by
+    obtain ⟨l,hl,on,miss⟩ := sep j i ne
+    have dark (q) (inc : I q l) : x (Fin.castAdd n q) = false := by
+      apply decide_eq_false
+      intro h
+      exact miss (Fin.castAdd_injective n n h ▸ inc)
+    intro h
+    have accepted := dark_partner_sound I S (p j) l hl on hc ev (rd j) (sole j) x dark h
+    rw [ev] at accepted
+    obtain ⟨_,v,_,_,_,sel⟩ := (edgeFun_true ..).mp accepted
+    exact (left_ne_right (p i) v).symm (of_decide_eq_true sel)
+  have earlier := reads_lt hc.1 use
+  constructor
+  · intro j e
+    obtain ⟨g,hg,_,ins⟩ := rd j
+    obtain ⟨g',hg',mem⟩ := use
+    rw [e,hg] at hg'
+    cases Option.some.inj hg'
+    have hraw := (Fin.castAdd n (p j)).isLt
+    have nr : n+n+r i ≠ (Fin.castAdd n (p j) : ℕ) := by omega
+    have tag : n+n+r i = t j := by
+      rcases ins with a|a <;> simp only [a,List.mem_cons,List.not_mem_nil,or_false] at mem
+      · exact mem.resolve_left nr
+      · exact mem.resolve_right nr
+    have ne : j ≠ i := by rintro rfl; omega
+    exact reject j ne (tag ▸ live)
+  · intro j e
+    obtain ⟨g,hg,mem⟩ := use
+    refine ⟨g,hg,?_⟩
+    obtain ⟨v,hv,_,ins⟩ := rd j
+    have readTag : Reads gs (r j) (t j) := ⟨v,hv,by rcases ins with a|a <;> simp [a]⟩
+    have early := reads_lt hc.1 readTag
+    have ne : j ≠ i := by rintro rfl; omega
+    rcases hc.1 k g hg with ⟨hn,_⟩|⟨op,_⟩
+    · exact False.elim (hc.2 g (List.mem_of_getElem? hg) hn)
+    apply op.resolve_right
+    intro hor
+    have fire := vl_abs gs hc.1 x k g hg (Or.inr hor) _ mem
+    apply reject j ne
+    rw [←e]
+    simpa [fixBit,hor] using fire (by simpa [fixBit,hor] using live)
+
+/-- Lift the gate-index calculation to arbitrary labels for the raw crossings. -/
+theorem indexed_cut {J : Type*} [Nonempty J] [DecidableEq J] {m o : ℕ} {gs : List Gate}
+    (hc : MClean m gs) (ho : o < m+gs.length) (src : J → Fin m) (r t f : J → ℕ)
+    (ri : Function.Injective r) (fi : Function.Injective f)
+    (reader : ∀ i, OrRd gs (r i) (src i) (t i)) (use : ∀ i, Reads gs (f i) (m+r i))
+    (classif : ∀ i, (∀ j, f i ≠ r j) ∧ (∀ j, m+f i=t j → ∃ g, gs[f i]?=some g ∧ g.op=.and))
+    (X U : Finset J) (subU : U ⊆ X) (P : Set (Fin m → Bool)) (c : ℕ)
+    (off : ∀ i ∈ U, ∀ x ∈ P, x (src i) = false)
+    (good : ∀ i ∈ U, ∀ x ∈ P, vl gs x (t i) = true → vl gs x o = true)
+    (restore : ∀ cs v, MClean m cs → v < m+cs.length →
+      (∀ x ∈ P, vl cs x v = vl gs x o) → gs.length ≤ cs.length+c) :
+    let H := U.image t
+    let A := X.filter (fun i => t i ∈ H)
+    A.card+U.card+(U.filter (fun i => m+f i ∈ X.image t)).card ≤ c+H.card := by
+  classical
+  intro H A
+  let back := Function.invFun r
+  have inv (i) : back (r i) = i := Function.leftInverse_invFun ri i
+  let R := X.image r
+  let DD := U.image r
+  let SS := A.image r
+  let tag (k : ℕ) := t (back k)
+  let raw (k : ℕ) : ℕ := src (back k)
+  let chooseF (k : ℕ) := f (back k)
+
+  have inA {i : J} (hi : i ∈ U) : i ∈ A := by
+    dsimp only [A]
+    rw [Finset.mem_filter]
+    constructor
+    · exact subU hi
+    · change t i ∈ U.image t
+      rw [Finset.mem_image]
+      exact ⟨i,hi,rfl⟩
+  have subset : DD ⊆ SS := by
+    change U.image r ⊆ A.image r
+    apply Finset.image_subset_image
+    intro i hi
+    exact inA hi
+  have inside : SS ⊆ R := Finset.image_subset_image (show A ⊆ X from Finset.filter_subset _ _)
+  have tagImage (X : Finset J) : (X.image r).image tag = X.image t := by
+    simp only [Finset.image_image,Function.comp_def,tag,inv]
+  have atS : SS.image tag = H := by
+    rw [tagImage]
+    ext z
+    constructor
+    · intro hz
+      obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp hz
+      exact (Finset.mem_filter.mp hi).2
+    · intro hz
+      obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp hz
+      exact Finset.mem_image_of_mem t (inA hi)
+  have atR : R.image tag = X.image t := tagImage _
+
+  have inj : Set.InjOn chooseF DD := by
+    intro k hk l hl e
+    obtain ⟨i,_,rfl⟩ := Finset.mem_image.mp hk
+    obtain ⟨j,_,rfl⟩ := Finset.mem_image.mp hl
+    exact congrArg r (fi (by simpa only [chooseF,inv] using e))
+  have reads k (hk : k ∈ DD) : Reads gs (chooseF k) (m+k) := by
+    obtain ⟨i,_,rfl⟩ := Finset.mem_image.mp hk
+    simpa only [chooseF,inv] using use i
+  have dis : Disjoint R (DD.image chooseF) := by
+    apply Finset.disjoint_left.mpr
+    intro k hk hf
+    obtain ⟨j,_,rfl⟩ := Finset.mem_image.mp hk
+    obtain ⟨q,hq,e⟩ := Finset.mem_image.mp hf
+    obtain ⟨i,_,rfl⟩ := Finset.mem_image.mp hq
+    exact (classif i).1 j (by simpa only [chooseF,inv] using e)
+  have rd k (hk : k ∈ R) : OrRd gs k (raw k) (tag k) := by
+    obtain ⟨i,_,rfl⟩ := Finset.mem_image.mp hk
+    simpa only [raw,tag,inv] using reader i
+  have dark k (hk : k ∈ DD) (x) (hx : x ∈ P) : vl gs x (raw k) = false ∧ raw k < m := by
+    obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp hk
+    simp only [raw,inv]
+    exact ⟨(vl_input _ _ _ (src i).isLt).trans (off i hi x hx),(src i).isLt⟩
+  have ands k (hk : k ∈ DD) (hz : m+chooseF k ∈ R.image tag) :
+      ∃ g, gs[chooseF k]? = some g ∧ g.op = .and := by
+    obtain ⟨i,_,rfl⟩ := Finset.mem_image.mp hk
+    simp only [chooseF,inv,atR] at hz ⊢
+    obtain ⟨j,_,e⟩ := Finset.mem_image.mp hz
+    exact (classif i).2 j e.symm
+  have sound k (hk : k ∈ SS) (x) (hx : x ∈ P) : vl gs x (tag k) = true → vl gs x o = true := by
+    obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp hk
+    obtain ⟨j,hj,e⟩ := Finset.mem_image.mp (Finset.mem_filter.mp hi).2
+    simp only [tag,inv,←e]
+    exact good j hj x hx
+  have budget := cut_budget hc ho P R SS DD chooseF raw tag c inj subset inside
+    reads dis rd dark ands sound restore
+  have filterEq : DD.filter (fun k => m+chooseF k ∈ R.image tag) =
+      (U.filter (fun i => m+f i ∈ X.image t)).image r := by
+    ext k
+    constructor
+    · intro hk
+      obtain ⟨h,p⟩ := Finset.mem_filter.mp hk
+      obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp h
+      exact Finset.mem_image.mpr ⟨i,Finset.mem_filter.mpr ⟨hi,by simpa only [atR,chooseF,inv] using p⟩,rfl⟩
+    · intro hk
+      obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp hk
+      obtain ⟨h,p⟩ := Finset.mem_filter.mp hi
+      exact Finset.mem_filter.mpr ⟨Finset.mem_image_of_mem r h,by simpa only [atR,chooseF,inv] using p⟩
+  rw [filterEq,atS] at budget
+  simp only [SS,DD,Finset.card_image_of_injective _ ri] at budget
+  exact budget
 
 end Onlyfr.PrivateGridMatching

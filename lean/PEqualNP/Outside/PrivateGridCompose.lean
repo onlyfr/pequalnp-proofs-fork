@@ -92,7 +92,7 @@ theorem add_twin {m s : ℕ} (f : (Fin m → Bool) → Bool) (hf : HasMonoSize m
   have := Clean.ToolOfClean_proof m cs v clean
   rw [funEq] at this
   exact this.mono (by simp [pre] at size; omega)
-private theorem snoc_and (hc : MClean m gs) (ha : a < m+gs.length) (hb : b < m+gs.length) :
+theorem snoc_and (hc : MClean m gs) (ha : a < m+gs.length) (hb : b < m+gs.length) :
     let cs := gs ++ [⟨GateOp.and,[a,b]⟩]
     MClean m cs ∧ ∀ x : Fin m → Bool,
       vl cs x (m+gs.length) = (vl gs x a && vl gs x b) ∧
