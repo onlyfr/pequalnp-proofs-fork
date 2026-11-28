@@ -1,5 +1,7 @@
 # First consumers of the crossing readers
 
+The subsequent [zero-partner proof](grid-zero-partner.md) closes the remaining interval for this grid on paper.
+
 In the 1001 by 1001 grid, the all-distinct-partner case cannot occur in a minimum circuit under the ten-gate hypothesis. The proof uses two selector tests per crossing. It counts gates already used as partners at full value and permits unrestricted fanout and arbitrary depth.
 
 ## General bound

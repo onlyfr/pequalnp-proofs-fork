@@ -249,4 +249,63 @@ theorem consumer_matching {I G : Type*} [Finite I] [DecidableEq G]
   have h := Finset.card_le_card sub
   simp only [Finset.card_map,Finset.card_product,Finset.card_univ,Fintype.card_bool] at h
   omega
+/-- Count the second saving without counting any bypassed reader twice.
+A zero partner inside the cut needs no tap. Outside the cut it removes at
+least one further reader in its own group. -/
+theorem zero_partner_credit {touched zero : Finset ℕ} {bypassed matched restore : ℕ}
+    (least : bypassed + matched + (zero \ touched).card ≤
+      restore + (touched \ zero).card) :
+    bypassed + matched + zero.card ≤ restore + touched.card := by
+  have a := Finset.card_sdiff_add_card_inter zero touched
+  have b := Finset.card_sdiff_add_card_inter touched zero
+  rw [Finset.inter_comm touched zero] at b
+  omega
+
+/-- H distinct matched consumers are themselves partners. Each matched
+crossing is selected with probability 3/1001 in a three-column cut. -/
+theorem paired_three_cut_impossible {B H : ℕ}
+    (size : 1001^2 + 501501 + B ≤ 2009006)
+    (matched : 1001^2 ≤ H+B)
+    (cuts : 2997*1001 + 3*H ≤ 4010*1001) : False := by omega
+
+/-- Scaled sum of the row and column expectation bounds after the additional
+zero-partner saving. -/
+theorem strengthened_lower_47 {K B H score : ℕ}
+    (size : 1001^2 + K + B ≤ 2009006)
+    (matched : 1001^2 ≤ H+B)
+    (groups : 8770*1001^2 ≤ 11632*K + score)
+    (cuts : 47*score + 4000*47*H ≤ 4000*1001*48142) :
+    611406 ≤ K := by omega
+
+theorem tight_grid_bounds_incompatible {K B H score : ℕ}
+    (size : 1001^2 + K + B ≤ 2009006)
+    (matched : 1001^2 ≤ H+B)
+    (groups : 8770*1001^2 ≤ 11632*K + score)
+    (cuts : 47*score + 4000*47*H ≤ 4000*1001*48142)
+    (probes : 2*1001^2 ≤ K+3*B) : False := by
+  have := strengthened_lower_47 size matched groups cuts
+  have := spare_partner_ceiling probes size
+  omega
+/-- For 24 dark lines, any nonsingleton group touches at least one line
+in each direction and at least two in one direction. The sum of its two hit
+probabilities is at least (24/1001)*(2977/1000). -/
+theorem tight_grid_uniform_impossible {K B H : ℕ}
+    (size : 1001^2 + K + B ≤ 2009006) (matched : 1001^2 ≤ H+B)
+    (cuts : 24*(2977*1001^2+2000*H) ≤ 2000*1001*25073 + 24*2977*K)
+    (probes : 2*1001^2 ≤ K+5*B) : False := by
+  have low : 902194 ≤ K := by omega
+  have high : K ≤ 757755 := by omega
+  omega
+/-- Sum the pointwise circuit bound over a finite family of cuts. The input
+losses for each group and the zero-partner credits can be correlated. -/
+theorem sum_cut_credits {C G : Type*} (cuts : Finset C) (groups : Finset G)
+    (loss : C → G → ℕ) (credit : C → ℕ) (lower : G → ℕ) (z allowance : ℕ)
+    (pointwise : ∀ c ∈ cuts, (∑ g ∈ groups, loss c g) + credit c ≤ allowance)
+    (hits : ∀ g ∈ groups, lower g ≤ ∑ c ∈ cuts, loss c g)
+    (matched : z ≤ ∑ c ∈ cuts, credit c) :
+    (∑ g ∈ groups, lower g) + z ≤ cuts.card * allowance := by
+  have h := Finset.sum_le_sum pointwise
+  rw [Finset.sum_add_distrib, Finset.sum_comm (s := cuts) (t := groups)] at h
+  have hl := Finset.sum_le_sum hits
+  simpa using (le_trans (Nat.add_le_add hl matched) h)
 end Onlyfr.PrivateGridProbe
