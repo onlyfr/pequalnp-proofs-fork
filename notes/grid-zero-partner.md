@@ -2,6 +2,14 @@
 
 This is a paper proof for the specific two-pencil grid, with both infinity bits free. The final finite-set accounting and arithmetic contradiction are Lean checked. The repository does not yet contain an end-to-end Lean theorem instantiating the circuit transformations for this grid.
 
+## Lean status for the uncompressed grid
+
+`PrivateGrid1009.matched_one_row` fixes a particular horizontal deletion. From a ten-gate upper bound its minimum circuit admits one injective matching of all 1,002,001 crossing readers to direct consumers. The proof keeps eight private points per line and both independent infinity inputs. Row permutations preserve the erased minimum.
+
+`PrivateGrid1009.cuts_of_ten` uses that same matching for every subset of rows or columns. For a cut of size d the explicit restoration costs at most 2011d+1001 gates. Folding the 1001d matched consumers gives the allowance 1010d+1001. The set of readers with a touched partner and the extra matched-partner credits are computed from the actual circuit. `PrivateGrid1009.incompatible_counts` connects both cut inequalities to averaging over all subsets.
+
+`PrivateGrid1009.first_probes` constructs both first changed consumers. `PrivateGrid1009.gate_partition` counts the readers, distinct partners and remaining gates in the same circuit. The end-to-end conditional theorem `PrivateGrid1009.eleven_of_probe_bound` has one outstanding circuit-counting hypothesis: if M=1001², K is the number of distinct partners and B is the number of other gates after excluding readers and partners, then 2M ≤ K+8B. The theorem uses the verified erased upper bound 2,023,012. An unconditional eleven-gate theorem still requires the probe-charge estimate for actual circuits. The grid input indexing here represents the active incidence geometry; it does not include an embedding into the project's full projective-plane indexing.
+
 ## Setup and previously established inputs
 
 Let M=1001^2. Delete one horizontal line. By relabelling rows and columns and interchanging directions the choice does not affect the marginal. Let D(k), E(k) be the minimum sizes before/after deletion when k crossings of that row are free and the others are fixed off. E(k)=E(0)+k by private twins; D(0)=E(0)+10 by the eight-private-points bound and the nine-input row construction. Each crossing is essential, so each increment of D is at least one. Hence the marginal is at least ten; equality requires every increment to be one, in any ordering. See [the row restoration proof](grid-1001-marginal.md).
