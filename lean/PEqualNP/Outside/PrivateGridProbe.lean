@@ -126,4 +126,52 @@ theorem consuming_signature {L : Type*} (R W G : Set L) (empty : R = ∅)
     (op : G = R ∩ W ∨ G = R ∪ W) : G = ∅ ∨ G = W := by
   subst R
   simpa using op
+/-- In the dark column, restore the horizontal incidences by adding each
+crossing to its own row's private bit, and restore the hub in surviving columns. -/
+theorem restore_with_twins {R C : Type*} (other : Prop)
+    (row rowPrivate cross : R → Prop) (col colPrivate : C → Prop)
+    (hub chosen chosenPrivate : Prop) :
+    (other ∨ (∃ i, row i ∧ (rowPrivate i ∨ cross i)) ∨
+      (∃ j, col j ∧ (colPrivate j ∨ hub)) ∨
+      (chosen ∧ (chosenPrivate ∨ hub ∨ ∃ i, cross i))) ↔
+    (other ∨ (∃ i, row i ∧ rowPrivate i) ∨ (∃ j, col j ∧ colPrivate j) ∨
+      (∃ i, row i ∧ cross i) ∨ (hub ∧ ∃ j, col j) ∨
+      (chosen ∧ (chosenPrivate ∨ hub ∨ ∃ i, cross i))) := by
+  aesop
+
+/-- Integer supporting bound, sharp on complete 3 by 3 and 3 by 4 groups. -/
+theorem rectangle_charge (g r c : ℕ) (pos : 1 ≤ g) (area : g ≤ r*c) :
+    29*g ≤ 117 + 3*((g-1)*(r+c)) := by
+  by_cases big : 10 ≤ r+c
+  · have h := Nat.mul_le_mul_left (g-1) big
+    omega
+  · have hr : r ≤ 9 := by omega
+    have hc : c ≤ 9 := by omega
+    interval_cases r <;> interval_cases c <;> simp_all <;> omega
+
+theorem shared_lower_1001 {K total : ℕ}
+    (groups : 29*1001^2 ≤ 117*K+3*total)
+    (cuts : total ≤ 2*1001*3005) : 94103 ≤ K := by omega
+/-- Scaled two-term inclusion-exclusion score for a uniform 24-column cut.
+Using only seven columns of a group suffices for the integer certificate. -/
+def cutScore (n : ℕ) : ℕ :=
+  let t := min n 7
+  2000*t - 23*t*(t-1)
+
+theorem batch_rectangle_charge (g r c : ℕ) (pos : 1 ≤ g) (area : g ≤ r*c) :
+    12678*g ≤ 26988 + (g-1)*(cutScore r+cutScore c) := by
+  have large (h : 13034 ≤ cutScore r+cutScore c) := Nat.mul_le_mul_left (g-1) h
+  by_cases hr : 7 ≤ r
+  · have eq : cutScore r = 13034 := by simp [cutScore,min_eq_right hr]
+    have h := large (by omega)
+    omega
+  by_cases hc : 7 ≤ c
+  · have eq : cutScore c = 13034 := by simp [cutScore,min_eq_right hc]
+    have h := large (by omega)
+    omega
+  interval_cases r <;> interval_cases c <;> norm_num [cutScore] at * <;> omega
+
+theorem batch_partner_lower {K total : ℕ}
+    (groups : 12678*1001^2 ≤ 26988*K+total)
+    (cuts : 24*total ≤ 2*2000*1001*49097) : 167199 ≤ K := by omega
 end Onlyfr.PrivateGridProbe
