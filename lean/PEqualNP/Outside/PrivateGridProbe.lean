@@ -174,4 +174,79 @@ theorem batch_rectangle_charge (g r c : ℕ) (pos : 1 ≤ g) (area : g ≤ r*c) 
 theorem batch_partner_lower {K total : ℕ}
     (groups : 12678*1001^2 ≤ 26988*K+total)
     (cuts : 24*total ≤ 2*2000*1001*49097) : 167199 ≤ K := by omega
+/-- Hall's inequality for a reader subset, split into exclusive leaves and
+the remaining vertices. The latter have at least two incidences apiece and
+each consumer has at most two reader inputs. -/
+theorem consumer_hall_count {leaves rest incidences consumers neighbours : ℕ}
+    (left : 2*rest ≤ incidences) (right : incidences ≤ 2*consumers)
+    (exclusive : leaves+consumers ≤ neighbours) : leaves+rest ≤ neighbours := by omega
+
+theorem matched_rectangle_charge (g r c : ℕ) (pos : 1 ≤ g) (area : g ≤ r*c) :
+    8885*g ≤ 11816 + (g-1)*(cutScore r+cutScore c) := by
+  have large (h : 13034 ≤ cutScore r+cutScore c) := Nat.mul_le_mul_left (g-1) h
+  by_cases hr : 7 ≤ r
+  · have eq : cutScore r = 13034 := by simp [cutScore,min_eq_right hr]
+    have h := large (by omega)
+    omega
+  by_cases hc : 7 ≤ c
+  · have eq : cutScore c = 13034 := by simp [cutScore,min_eq_right hc]
+    have h := large (by omega)
+    omega
+  interval_cases r <;> interval_cases c <;> norm_num [cutScore] at * <;> omega
+
+theorem matched_batch_lower {K total : ℕ}
+    (groups : 8885*1001^2 ≤ 11816*K+total)
+    (cuts : 24*total ≤ 2*2000*1001*(49097-24*1001)) : 399439 ≤ K := by omega
+
+/-- A double charge on a two-reader consumer needs a spare reader slot
+elsewhere. The unused partner slots cancel between the two capacity bounds. -/
+theorem spare_probe_bound {M K B A C N P0 C0 S twice unused p a c : ℕ}
+    (partition : B = A+C+N) (origins : S ≤ N) (tests : 2*M = p+a+c)
+    (partner : p+P0 ≤ K+S) (single : c+2*C0 ≤ 2*C)
+    (dual : a+unused = 2*A+twice) (cap : a ≤ 4*A)
+    (spare : twice ≤ unused+C0+2*P0) :
+    2*M ≤ K+3*B := by omega
+
+theorem spare_partner_ceiling {K B : ℕ}
+    (charges : 2*(1001^2) ≤ K+3*B) (tight : 1001^2+K+B ≤ 2009006) :
+    K ≤ 508506 := by omega
+def cutScore47 (n : ℕ) : ℕ :=
+  let t := min n 7
+  2000*t - 46*t*(t-1)
+
+theorem matched_rectangle_47 (g r c : ℕ) (pos : 1 ≤ g) (area : g ≤ r*c) :
+    8770*g ≤ 11632 + (g-1)*(cutScore47 r+cutScore47 c) := by
+  have large (h : 12068 ≤ cutScore47 r+cutScore47 c) := Nat.mul_le_mul_left (g-1) h
+  by_cases hr : 7 ≤ r
+  · have eq : cutScore47 r = 12068 := by simp [cutScore47,min_eq_right hr]
+    have h := large (by omega)
+    omega
+  by_cases hc : 7 ≤ c
+  · have eq : cutScore47 c = 12068 := by simp [cutScore47,min_eq_right hc]
+    have h := large (by omega)
+    omega
+  interval_cases r <;> interval_cases c <;> norm_num [cutScore47] at * <;> omega
+
+theorem matched_lower_47 {K total : ℕ}
+    (groups : 8770*1001^2 ≤ 11632*K+total)
+    (cuts : 47*total ≤ 2*2000*1001*48142) : 402877 ≤ K := by omega
+/-- Two distinct slots per reader suffice for an injective choice of actual
+consumers. Exclusive leaves take both slots of their consumer; other readers
+use their own input ports at two different consumers. -/
+theorem consumer_matching {I G : Type*} [Finite I] [DecidableEq G]
+    (adj : I → Finset G) (port : I × Bool ↪ G × Bool)
+    (valid : ∀ x, (port x).1 ∈ adj x.1) :
+    ∃ f : I → G, Function.Injective f ∧ ∀ i, f i ∈ adj i := by
+  classical
+  apply (Finset.all_card_le_biUnion_card_iff_existsInjective' adj).mp
+  intro s
+  have sub : ((s ×ˢ (Finset.univ : Finset Bool)).map port) ⊆
+      ((s.biUnion adj) ×ˢ (Finset.univ : Finset Bool)) := by
+    intro z hz
+    obtain ⟨x,hx,rfl⟩ := Finset.mem_map.mp hz
+    exact Finset.mem_product.mpr
+      ⟨Finset.mem_biUnion.mpr ⟨x.1,(Finset.mem_product.mp hx).1,valid x⟩,Finset.mem_univ _⟩
+  have h := Finset.card_le_card sub
+  simp only [Finset.card_map,Finset.card_product,Finset.card_univ,Fintype.card_bool] at h
+  omega
 end Onlyfr.PrivateGridProbe

@@ -3,7 +3,7 @@ from collections import Counter
 from itertools import product
 
 
-def check(rows, cols):
+def check(rows, cols, shared=False):
     points = list(product(range(rows), range(cols)))
     lines = list(range(rows + cols))
     probes = [(p, l) for p in [None, *points] for l in lines]
@@ -30,9 +30,17 @@ def check(rows, cols):
         partners.add(carry)
         reader = gate("or", xs[i,j], carry)
         readers[i,j] = reader
-        both = gate("or", ys[i], ys[rows+j])
-        carry = gate("and", reader, both)
-        terms.append(carry)
+        if not shared:
+            both = gate("or", ys[i], ys[rows+j])
+            carry = gate("and", reader, both)
+            terms.append(carry)
+    if shared:
+        for l in lines:
+            attached = [readers[i,j] for i,j in points if l in (i,rows+j)]
+            aggregate = attached[0]
+            for reader in attached[1:]:
+                aggregate = gate("or", aggregate, reader)
+            terms.append(gate("and", aggregate, ys[l]))
     out = terms[0]
     for t in terms[1:]:
         out = gate("or", out, t)
@@ -67,9 +75,16 @@ def check(rows, cols):
     assert all(charges[w] <= (2 if w in partners else 4) for w in charges)
     assert sum(charges.values()) == 2*len(points)
     assert 2*len(points) <= len(partners)+4*len(outside)
+    assert 2*len(points) <= len(partners)+3*len(outside)
+    # Check Hall directly for the two-by-two DAGs, including shared consumers.
+    if len(points) == 4:
+        for subset_bits in product((False, True), repeat=len(points)):
+            selected = {readers[p] for p, on in zip(points, subset_bits) if on}
+            neighbours = {w for w, ins in operands.items() if selected.intersection(ins)}
+            assert len(neighbours) >= len(selected)
     return len(points), len(exceptional), sum(charges.values())
 
 
 if __name__ == "__main__":
     for shape in ((2,2),(3,4),(5,5)):
-        print(shape, check(*shape))
+        print(shape, "chain", check(*shape), "shared", check(*shape, shared=True))
