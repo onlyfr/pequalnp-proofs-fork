@@ -1,5 +1,6 @@
 import PEqualNP.Outside.PrivateGridProbe
-import PEqualNP.Outside.PrivateGridRewire
+import PEqualNP.Outside.PrivateGridCompose
+import PEqualNP.Outside.PrivateGridPin
 
 namespace Onlyfr.PrivateGridMatching
 open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity PEqualNP.MetaComplexity.Helpers
@@ -377,29 +378,120 @@ theorem crossing_tests {J : Type*} [Nontrivial J] {n : ℕ}
       by_cases e : v=a <;> simp [e]
     exact ⟨_,z,by rw [zero,edgeFun_zero,on]; decide⟩
 
+/-- Two distinct points with the same active neighbours are interchangeable
+inside the point OR. Restore the pinned point with one physical OR gate. -/
+theorem restore_twin {n s : ℕ} (I : Fin n → Fin n → Prop) (S : Finset (Fin n))
+    (a b : Fin n) (ne : a ≠ b) (tw : ∀ l ∈ S, I a l ↔ I b l)
+    (hf : HasMonoSize (n+n) (fun x => edgeFun I S (Function.update x (Fin.castAdd n a) false)) s)
+    (nc : ∃ x y, edgeFun I S (Function.update x (Fin.castAdd n a) false) ≠
+      edgeFun I S (Function.update y (Fin.castAdd n a) false)) :
+    HasMonoSize (n+n) (edgeFun I S) (s+1) := by
+  let A := Fin.castAdd n a
+  let B := Fin.castAdd n b
+  have build := PrivateGridCompose.add_twin _ hf nc B A
+  convert build using 1
+  funext x
+  let y := Function.update (Function.update x B (x B || x A)) A false
+  change edgeFun I S x = edgeFun I S y
+  apply Bool.eq_iff_iff.mpr
+  rw [edgeFun_true,edgeFun_true]
+  have lines (l : Fin n) : y (Fin.natAdd n l) = x (Fin.natAdd n l) := by
+    simp only [y,A,B,Function.update_of_ne (left_ne_right a l).symm,
+      Function.update_of_ne (left_ne_right b l).symm]
+  have ab : B ≠ A := fun e => ne ((Fin.castAdd_injective n n e).symm)
+  have atB : y B = (x B || x A) := by simp only [y,Function.update_of_ne ab,Function.update_self]
+  have other (q : Fin n) (ha : q ≠ a) (hb : q ≠ b) : y (Fin.castAdd n q) = x (Fin.castAdd n q) := by
+    simp only [y,Function.update_of_ne (show Fin.castAdd n q ≠ A from fun e => ha (Fin.castAdd_injective n n e)),
+      Function.update_of_ne (show Fin.castAdd n q ≠ B from fun e => hb (Fin.castAdd_injective n n e))]
+  constructor
+  · rintro ⟨q,l,hl,inc,on,sel⟩
+    rw [←lines] at sel
+    by_cases ha : q=a
+    · subst q
+      exact ⟨b,l,hl,(tw l hl).mp inc,atB.trans (Bool.or_eq_true_iff.mpr (Or.inr on)),sel⟩
+    by_cases hb : q=b
+    · subst q
+      exact ⟨b,l,hl,inc,atB.trans (Bool.or_eq_true_iff.mpr (Or.inl on)),sel⟩
+    exact ⟨q,l,hl,inc,(other q ha hb).trans on,sel⟩
+  · rintro ⟨q,l,hl,inc,on,sel⟩
+    rw [lines] at sel
+    by_cases ha : q=a
+    · subst q
+      have off : y A = false := Function.update_self ..
+      exact False.elim (Bool.noConfusion (off.symm.trans on))
+    by_cases hb : q=b
+    · subst q
+      rcases Bool.or_eq_true_iff.mp (atB.symm.trans on) with on|on
+      · exact ⟨b,l,hl,inc,on,sel⟩
+      · exact ⟨a,l,hl,(tw l hl).mpr inc,on,sel⟩
+    exact ⟨q,l,hl,inc,(other q ha hb).symm.trans on,sel⟩
+
 /-- Transfer a ten-gate deletion budget to the pinned crossing by restoring
-one erased twin. The lower bound on the pinned deletion is a separate input. -/
+one erased twin. Eight surviving private points certify the pinned deletion. -/
 theorem ten_matching {J : Type*} [Finite J] [Nontrivial J] {n : ℕ} {gs : List Gate}
-    (I : Fin n → Fin n → Prop) (S : Finset (Fin n)) (l : Fin n) (p : J → Fin n)
-    (o e : ℕ) (ho : o < gs.length) (least : MLeast (n+n) (edgeFun I S) gs (n+n+o))
+    (I : Fin n → Fin n → Prop) (S : Finset (Fin n)) (l p : J → Fin n)
+    (o : ℕ) (e : J → ℕ) (ho : o < gs.length) (least : MLeast (n+n) (edgeFun I S) gs (n+n+o))
     (sep : ∀ i j, i ≠ j → ∃ a ∈ S, I (p i) a ∧ ¬ I (p j) a)
-    (ten : gs.length ≤ e+10)
-    (emin : ∀ s, HasMonoSize (n+n) (edgeFun I (S.erase l)) s → e ≤ s)
-    (pinDrop : ∀ i s, HasMonoSize (n+n)
-      (fun x => edgeFun I S (Function.update x (Fin.castAdd n (p i)) false)) s →
-      ∃ t, t+10 ≤ s ∧ HasMonoSize (n+n)
-        (fun x => edgeFun I (S.erase l) (Function.update x (Fin.castAdd n (p i)) false)) t)
-    (restoreTwin : ∀ i t, HasMonoSize (n+n)
-      (fun x => edgeFun I (S.erase l) (Function.update x (Fin.castAdd n (p i)) false)) t →
-      HasMonoSize (n+n) (edgeFun I (S.erase l)) (t+1)) :
+    (ten : ∀ i, gs.length ≤ e i+10)
+    (emin : ∀ i s, HasMonoSize (n+n) (edgeFun I (S.erase (l i))) s → e i ≤ s)
+    (privatePts : ∀ i, PrivateGridPin.EightPrivate I S (l i) (p i))
+    (twin : ∀ i, ∃ b, b ≠ p i ∧
+      (∀ a ∈ S.erase (l i), I (p i) a ↔ I b a) ∧ ∃ a ∈ S.erase (l i), I b a) :
     ∃ r t f : J → ℕ, Function.Injective f ∧
       ∀ i, OrRd gs (r i) (Fin.castAdd n (p i)) (t i) ∧
         (∀ k, Reads gs k (Fin.castAdd n (p i)) → k=r i) ∧ Reads gs (f i) (n+n+r i) := by
   apply tight_matching I S p o ho least sep (fun i => (crossing_tests I S p sep i).1)
     (fun i => (crossing_tests I S p sep i).2)
   intro i s hs
-  obtain ⟨t,ht,small⟩ := pinDrop i s hs
-  have := emin _ (restoreTwin i t small)
+  obtain ⟨t,ht,small⟩ := PrivateGridPin.pinned_ten I S (l i) (p i) (privatePts i) hs
+  obtain ⟨b,ne,tw,a,ha,inc⟩ := twin i
+  let z := pairInput b a
+  let u := Fin.castAdd n (p i)
+  have positive : edgeFun I (S.erase (l i)) (Function.update z u false) = true :=
+    (edgeFun_true ..).mpr ⟨b,a,ha,inc,by
+      rw [Function.update_of_ne (show Fin.castAdd n b ≠ u from fun h => ne (Fin.castAdd_injective n n h))]
+      simp only [z,pair_point,decide_true],by
+      rw [Function.update_of_ne (left_ne_right (p i) a).symm]
+      simp only [z,pair_line,decide_true]⟩
+  have zero : Function.update (fun _ : Fin (n+n) => false) u false = fun _ => false := by
+    funext v; by_cases h : v=u <;> simp [h]
+  have restored := restore_twin I (S.erase (l i)) (p i) b ne.symm tw small
+    ⟨_,z,by rw [zero,edgeFun_zero,positive]; decide⟩
+  have := emin i _ restored
+  have := ten i
   omega
+
+/-- Use one matching for all cuts. Every dark reader pays for its matched
+consumer, and earns a second credit when that consumer is a partner. -/
+theorem cut_budget {m o : ℕ} {gs : List Gate} (hc : MClean m gs) (ho : o < m+gs.length)
+    (P : Set (Fin m → Bool)) (R S D : Finset ℕ) (f src tag : ℕ → ℕ) (c : ℕ)
+    (inj : Set.InjOn f D) (darkTouched : D ⊆ S) (inside : S ⊆ R)
+    (uses : ∀ i ∈ D, Reads gs (f i) (m+i)) (dis : Disjoint R (D.image f))
+    (rd : ∀ k ∈ R, OrRd gs k (src k) (tag k))
+    (dark : ∀ i ∈ D, ∀ x ∈ P, vl gs x (src i) = false ∧ src i < m)
+    (andGate : ∀ i ∈ D, m+f i ∈ R.image tag → ∃ g, gs[f i]? = some g ∧ g.op = .and)
+    (sound : ∀ k ∈ S, ∀ x ∈ P, vl gs x (tag k) = true → vl gs x o = true)
+    (restore : ∀ cs v, MClean m cs → v < m+cs.length →
+      (∀ x ∈ P, vl cs x v = vl gs x o) → gs.length ≤ cs.length+c) :
+    S.card+D.card+(D.filter (fun i => m+f i ∈ R.image tag)).card ≤ c+(S.image tag).card := by
+  classical
+  let M := D.filter (fun i => m+f i ∈ R.image tag)
+  let Z := M.image (fun i => m+f i)
+  have zz : Z ⊆ R.image tag := by
+    intro z hz
+    obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp hz
+    exact (Finset.mem_filter.mp hi).2
+  obtain ⟨E,de,card,ex⟩ := extra_readers R S (D.image f) Z src tag zz dis rd
+  have zero (z) (hz : z ∈ Z) : ∃ k ∈ D.image f, z=m+k ∧ ∃ g, gs[k]? = some g ∧ g.op = .and := by
+    obtain ⟨i,hi,rfl⟩ := Finset.mem_image.mp hz
+    obtain ⟨hd,hp⟩ := Finset.mem_filter.mp hi
+    exact ⟨f i,Finset.mem_image_of_mem f hd,rfl,andGate i hd hp⟩
+  have credit := matched_cut hc ho P D S E Z f src tag c inj darkTouched uses
+    (Finset.disjoint_left.mpr (fun _ hs hf => Finset.disjoint_left.mp dis (inside hs) hf))
+    de (fun k h => rd k (inside h)) dark zero ex (le_of_eq card.symm) sound restore
+  have count : Z.card = M.card := Finset.card_image_of_injOn (by
+    intro i hi j hj e
+    exact inj (Finset.mem_filter.mp hi).1 (Finset.mem_filter.mp hj).1 (Nat.add_left_cancel e))
+  simpa only [count] using credit
 
 end Onlyfr.PrivateGridMatching
