@@ -207,6 +207,41 @@ theorem first_probes {gs : List Gate} {o : ℕ} (ho : o < gs.length)
   choose c hc using charge
   exact ⟨fun z => c z.1 z.2,hc⟩
 
+/-- A partner charged by an endpoint probe cannot take a different reader
+as its second input. This remains true when readers have multiple consumers. -/
+theorem charged_partner_exclusive {gs : List Gate} {o : ℕ}
+    (least : MLeast (N+N) (edgeFun inc lines) gs o) (r t : Crossing → ℕ)
+    (rd : ∀ i, OrRd gs (r i) (Fin.castAdd N (cross i)) (t i))
+    (sole : ∀ i k, Reads gs k (Fin.castAdd N (cross i)) → k=r i)
+    (i j z : Crossing) (v : Bool) (k : ℕ) (part : N+N+k=t z)
+    (hi : Reads gs k (N+N+r i)) (hj : Reads gs k (N+N+r j))
+    (change : let l := line v (coord v i)
+      vl gs (singleton (Fin.natAdd N l)) (N+N+k) ≠ vl gs (pairInput (cross i) l) (N+N+k))
+    (agree : let l := line v (coord v i)
+      ∀ w, Reads gs k w → w ≠ N+N+r i →
+        vl gs (singleton (Fin.natAdd N l)) w = vl gs (pairInput (cross i) l) w) : j=i := by
+  by_contra ne
+  let l := line v (coord v i)
+  let x := singleton (Fin.natAdd N l)
+  let y := pairInput (cross i) l
+  have ri := incidence_reader_inj inc lines cross r t o least.clean least.2.2.1 rd sole sep
+  have different : N+N+r j ≠ N+N+r i := fun e => ne (ri (Nat.add_left_cancel e))
+  have off : vl gs x (N+N+r j) = false := by
+    rw [orrd_eval least.1 (rd j),vl_input _ _ _ (Fin.castAdd N (cross j)).isLt]
+    change (singleton (Fin.natAdd N l) (Fin.castAdd N (cross j)) || vl gs x (t j)) = false
+    have raw : singleton (Fin.natAdd N l) (Fin.castAdd N (cross j)) = false :=
+      decide_eq_false (left_ne_right (cross j) l)
+    rw [raw,Bool.eq_false_iff.mpr (partner_off_singleton j least (rd j) (sole j) _)]
+    rfl
+  obtain ⟨g,hg,hand⟩ := (consumer_class inc lines cross r t least.clean least.2.2.1 rd sole sep i k hi).2 z part
+  obtain ⟨g',hg',mem⟩ := hj
+  cases Option.some.inj (hg.symm.trans hg')
+  have off' : vl gs y (N+N+r j) = false := (agree _ ⟨g,hg,mem⟩ different).symm.trans off
+  have blocked (u : Fin (N+N) → Bool) (h : vl gs u (N+N+r j) = false) : vl gs u (N+N+k) = false := by
+    have eq := vl_abs gs least.1 u k g hg (Or.inl hand) _ mem
+    simpa only [fixBit,hand] using eq (by simpa [fixBit,hand] using h)
+  exact change ((blocked x off).trans (blocked y off').symm)
+
 /-- Sole remaining quantitative hypothesis: the first-probe charge bound in
 each tight minimum circuit. B is fixed by the circuit length and partner count. -/
 theorem eleven_of_probe_bound {gs : List Gate} {o e : ℕ} (a : Axis) (ho : o < gs.length)
